@@ -1,0 +1,76 @@
+<Window x:Class="Pegline.App.Shelves.ShelfWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pegline"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        ShowActivated="True"
+        SizeToContent="Manual"
+        FontFamily="Segoe UI Variable Text, Segoe UI"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+    <Grid x:Name="Root" ClipToBounds="True">
+        <Border x:Name="Panel"
+                VerticalAlignment="Top"
+                CornerRadius="0,0,18,18"
+                BorderThickness="1,0,1,1"
+                Padding="0,0,0,12">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="Slide" />
+            </Border.RenderTransform>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Top bar: brand, centered search, actions -->
+                <Grid Margin="22,10,16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="Brand" Text="Pegline" FontWeight="SemiBold" FontSize="13" Opacity="0.85" />
+                        <TextBlock x:Name="Status" Margin="12,0,0,0" FontSize="12" VerticalAlignment="Center" Opacity="0.6" />
+                    </StackPanel>
+
+                    <Border x:Name="SearchHost" Grid.Column="1" Width="460" CornerRadius="10" Padding="10,0,6,0" Visibility="Collapsed" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="SearchGlyph" Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" Opacity="0.7" />
+                            <TextBox x:Name="SearchBox" Grid.Column="1" Margin="8,0,0,0" Height="34" FontSize="13.5" VerticalContentAlignment="Center"
+                                     Background="Transparent" BorderThickness="0" CaretBrush="White" />
+                            <TextBlock x:Name="SearchPlaceholder" Grid.Column="1" Margin="10,0,0,0" FontSize="13.5" VerticalAlignment="Center" Opacity="0.45" IsHitTestVisible="False" />
+                            <TextBlock x:Name="SearchCount" Grid.Column="2" FontSize="11.5" VerticalAlignment="Center" Opacity="0.6" Margin="8,0,6,0" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel x:Name="Toolbar" Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <StackPanel x:Name="Rows" Grid.Row="1" Margin="0,2,0,0" />
+
+                <StackPanel x:Name="EmptyState" Grid.Row="2" Margin="0,18,0,18" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock x:Name="EmptyTitle" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock x:Name="EmptyHint" FontSize="12.5" Opacity="0.65" Margin="0,4,0,0" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border x:Name="Toast" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,14"
+                CornerRadius="14" Padding="14,6,14,7" Opacity="0" IsHitTestVisible="False" Background="#F2242A35" BorderBrush="#33FFFFFF" BorderThickness="1">
+            <TextBlock x:Name="ToastText" Foreground="White" FontSize="12.5" />
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "defaultPlatforms": [
+    "macos",
+    "windows"
+  ],
+  "records": [
+    {
+      "id": "temporary-image",
+      "kind": "image"
+    },
+    {
+      "id": "temporary-text",
+      "kind": "text"
+    },
+    {
+      "id": "temporary-link",
+      "kind": "link"
+    },
+    {
+      "id": "saved-once",
+      "kind": "text",
+      "save": "unpin"
+    },
+    {
+      "id": "pinned-image",
+      "kind": "image",
+      "save": "pin"
+    },
+    {
+      "id": "folder-link",
+      "kind": "link",
+      "save": "folder"
+    },
+    {
+      "id": "tagged-text",
+      "kind": "text",
+      "save": "tag"
+    },
+    {
+      "id": "old-trash",
+      "kind": "link",
+      "save": "trash"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "all-types",
+      "kind": "all",
+      "captured": [
+        "temporary-image",
+        "temporary-link",
+        "temporary-text"
+      ],
+      "trashed": [
+        "temporary-image",
+        "temporary-link",
+        "temporary-text"
+      ]
+    },
+    {
+      "id": "images-only",
+      "kind": "image",
+      "captured": [
+        "temporary-image"
+      ],
+      "trashed": [
+        "temporary-image"
+      ]
+    },
+    {
+      "id": "text-only",
+      "kind": "text",
+      "captured": [
+        "temporary-text"
+      ],
+      "trashed": [
+        "temporary-text"
+      ]
+    },
+    {
+      "id": "links-only",
+      "kind": "link",
+      "captured": [
+        "temporary-link"
+      ],
+      "trashed": [
+        "temporary-link"
+      ]
+    },
+    {
+      "id": "saved-during-confirmation-and-later-copy",
+      "kind": "all",
+      "captured": [
+        "temporary-image",
+        "temporary-link",
+        "temporary-text"
+      ],
+      "retainAfterSnapshot": [
+        "temporary-text"
+      ],
+      "newCopyAfterSnapshot": true,
+      "trashed": [
+        "temporary-image",
+        "temporary-link"
+      ]
+    },
+    {
+      "id": "same-content-recopied-while-confirming",
+      "kind": "all",
+      "captured": [
+        "temporary-image",
+        "temporary-link",
+        "temporary-text"
+      ],
+      "recopyAfterSnapshot": [
+        "temporary-text",
+        "temporary-link"
+      ],
+      "trashed": [
+        "temporary-image"
+      ]
+    },
+    {
+      "id": "cancel-writes-nothing",
+      "kind": "all",
+      "captured": [
+        "temporary-image",
+        "temporary-link",
+        "temporary-text"
+      ],
+      "cancel": true,
+      "trashed": []
+    }
+  ],
+  "invariants": [
+    "Preserve every saved record and all organization",
+    "Preserve managed media and external originals",
+    "Never include later copies or newly saved records",
+    "One recoverable Trash transaction",
+    "Cancel performs no writes",
+    "Restoring Trash preserves identities and content",
+    "A recopy that reuses an existing item identity is outside an older confirmation"
+  ]
+}

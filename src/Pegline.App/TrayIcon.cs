@@ -1,0 +1,93 @@
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+using Pegline.App.Localization;
+using Pegline.Core.Storage;
+
+namespace Pegline.App;
+
+/// <summary>Notification-area icon and menu.</summary>
+internal sealed class TrayIcon : IDisposable
+{
+    private readonly NotifyIcon _icon;
+    private readonly SettingsStore _settings;
+    private readonly Icon _image;
+
+    public TrayIcon(SettingsStore settings, Action showShelves, Action quit)
+    {
+        _settings = settings;
+        _image = DrawIcon();
+        _icon = new NotifyIcon { Icon = _image, Text = "Pegline", Visible = true };
+        _icon.MouseClick += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left) showShelves();
+        };
+        _icon.ContextMenuStrip = new ContextMenuStrip();
+        _icon.ContextMenuStrip.Opening += (_, _) => BuildMenu(showShelves, quit);
+        BuildMenu(showShelves, quit);
+    }
+
+    public void Notify(string title, string text) => _icon.ShowBalloonTip(4000, title, text, ToolTipIcon.None);
+
+    private void BuildMenu(Action showShelves, Action quit)
+    {
+        var menu = _icon.ContextMenuStrip!;
+        menu.Items.Clear();
+        var current = _settings.Current;
+        menu.Items.Add(Loc.T("Show shelves") + "\t" + current.GlobalShortcuts.GetValueOrDefault("toggle", ""), null, (_, _) => showShelves());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(Toggle(Loc.T("Capture copied text"), current.CaptureText, value => _settings.Update(s => s.CaptureText = value)));
+        menu.Items.Add(Toggle(Loc.T("Capture copied images"), current.CaptureImages, value => _settings.Update(s => s.CaptureImages = value)));
+        menu.Items.Add(Toggle(Loc.T("Capture copied links"), current.CaptureLinks, value => _settings.Update(s => s.CaptureLinks = value)));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(Loc.T("Quit Pegline"), null, (_, _) => quit());
+    }
+
+    private static ToolStripMenuItem Toggle(string text, bool value, Action<bool> change)
+    {
+        var item = new ToolStripMenuItem(text) { Checked = value, CheckOnClick = true };
+        item.CheckedChanged += (_, _) => change(item.Checked);
+        return item;
+    }
+
+    /// <summary>Placeholder mark until the final logo arrives: a clothespin on a rope.</summary>
+    private static Icon DrawIcon()
+    {
+        using var bitmap = new Bitmap(32, 32);
+        using (var g = Graphics.FromImage(bitmap))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Color.Transparent);
+            using var rope = new Pen(Color.FromArgb(230, 200, 205, 214), 2.2f);
+            g.DrawArc(rope, -6, -14, 44, 30, 20, 140);
+            using var card = new SolidBrush(Color.FromArgb(255, 59, 139, 246));
+            using var cardPath = Rounded(new RectangleF(7, 13, 18, 16), 3.5f);
+            g.FillPath(card, cardPath);
+            using var peg = new SolidBrush(Color.FromArgb(255, 238, 228, 210));
+            using var pegPath = Rounded(new RectangleF(13.5f, 4, 5, 13), 1.6f);
+            g.FillPath(peg, pegPath);
+            using var spring = new Pen(Color.FromArgb(255, 150, 130, 100), 1.1f);
+            g.DrawLine(spring, 16, 6, 16, 15);
+        }
+        return Icon.FromHandle(bitmap.GetHicon());
+    }
+
+    private static GraphicsPath Rounded(RectangleF r, float radius)
+    {
+        var path = new GraphicsPath();
+        var d = radius * 2;
+        path.AddArc(r.X, r.Y, d, d, 180, 90);
+        path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+        path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+        path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    public void Dispose()
+    {
+        _icon.Visible = false;
+        _icon.Dispose();
+        _image.Dispose();
+    }
+}

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pegline.App/Pegline.App.csproj" />
+    <Project Path="src/Pegline.Core/Pegline.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pegline.Core.Tests/Pegline.Core.Tests.csproj" />
+  </Folder>
+</Solution>
