@@ -45,12 +45,28 @@ internal sealed class ClipboardWriter(LibraryStore store)
                 data.SetFileDropList(files);
         }
 
+        if (!Write(data)) return false;
+        store.MarkCopied(items.Select(i => i.Id));
+        return true;
+    }
+
+    /// <summary>Copies a text fragment, such as a selection inside the text preview, without capturing it again.</summary>
+    public bool CopyText(string text)
+    {
+        if (text.Length == 0) return false;
+        var data = new DataObject();
+        data.SetData(ClipboardAdmission.OwnFormat, new MemoryStream([1]));
+        data.SetText(text, TextDataFormat.UnicodeText);
+        return Write(data);
+    }
+
+    private static bool Write(DataObject data)
+    {
         for (var attempt = 0; attempt < 6; attempt++)
         {
             try
             {
                 Clipboard.SetDataObject(data, copy: true);
-                store.MarkCopied(items.Select(i => i.Id));
                 return true;
             }
             catch (COMException)

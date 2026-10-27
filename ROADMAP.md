@@ -18,10 +18,11 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [~] Türkçe + İngilizce arayüz (diğer 7 dil: Faz 9)
 
 ## Faz 2 — Önizleme ve Eylemler
-- [ ] Space ile çerçevesiz önizleme (görsel / metin / link), oklarla yerinde gezinme
-- [ ] Görsel zoom (%100–400), tekerlek / sürükleme ile kaydırma, çift tıkla sıfırlama
-- [ ] Metin düzenleme (`E`), link tarayıcıda aç (`Ctrl+O`)
-- [ ] Eylemler paleti (`Ctrl+K`): bağlama duyarlı, aranabilir, kısayolları gösterir
+- [x] Space ile çerçevesiz önizleme (görsel / metin / link), oklarla askılar arası yerinde gezinme
+- [x] Görsel zoom (%100–400, imleç sabit), sürükleyerek kaydırma, çift tıkla sıfırlama
+- [x] Metin düzenleme (`E`, otomatik kayıt, `Ctrl+Enter` bitir), link tarayıcıda aç (`Ctrl+O`)
+- [x] Eylemler paleti (`Ctrl+K`): bağlama duyarlı, Türkçe/aksansız aranabilir, kısayolları ve devre dışı nedenini gösterir; henüz yapılmamış eylemler "Yakında" olarak görünür
+- [x] Paletten: kütüphaneye kaydet, sol/sağdakileri askıdan kaldır, dosyayı aç / Gezgin'de göster, son görseli kopyala, kaydedilmemişleri temizle, klasöre ekle/çıkar, etiket kaldır
 
 ## Faz 3 — Kütüphane penceresi
 - [ ] Izgara / liste, kenar çubuğu (Kütüphanem, Son kopyalar, Sabitlenenler, Düzenlenmemiş, Çöp), klasörler, etiketler

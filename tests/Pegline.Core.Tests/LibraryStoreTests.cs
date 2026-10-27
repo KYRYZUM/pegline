@@ -33,6 +33,32 @@ public sealed class LibraryStoreTests : IDisposable
     }
 
     [Fact]
+    public void EditTextRejectsBlankContentAndPersists()
+    {
+        using (var store = Open())
+        {
+            var item = store.InsertText("draft");
+            Assert.False(store.EditText(item.Id, "   \n"));
+            Assert.True(store.EditText(item.Id, "final"));
+            Assert.False(store.EditText(store.InsertLink("https://example.com").Id, "x"));
+        }
+        using var reopened = Open();
+        Assert.Contains(reopened.Items, i => i.Text == "final");
+    }
+
+    [Fact]
+    public void RetainKeepsItemsPastRetention()
+    {
+        using var store = Open();
+        var item = store.InsertText("keep me");
+        store.Retain([item.Id]);
+        Assert.True(store.Find(item.Id)!.IsSaved);
+        _now = _now.AddDays(60);
+        store.Expire();
+        Assert.False(store.Find(item.Id)!.IsTrashed);
+    }
+
+    [Fact]
     public void LinksAndImagesDeduplicateByAddressAndContent()
     {
         using var store = Open();

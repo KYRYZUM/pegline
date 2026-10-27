@@ -144,7 +144,20 @@ internal static class Win32
     public static (RECT Work, double Scale) MonitorUnderCursor()
     {
         GetCursorPos(out var point);
-        var monitor = MonitorFromPoint(point, 2); // MONITOR_DEFAULTTONEAREST
+        return Describe(MonitorFromPoint(point, 2)); // MONITOR_DEFAULTTONEAREST
+    }
+
+    /// <summary>Work area (pixels) and DPI scale of the monitor showing a window.</summary>
+    public static (RECT Work, double Scale) MonitorOf(IntPtr hwnd) => Describe(MonitorFromWindow(hwnd, 2));
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+
+    private static (RECT Work, double Scale) Describe(IntPtr monitor)
+    {
         var info = new MONITORINFO { Size = Marshal.SizeOf<MONITORINFO>() };
         GetMonitorInfo(monitor, ref info);
         var scale = GetDpiForMonitor(monitor, 0, out var dpi, out _) == 0 ? dpi / 96.0 : 1.0;

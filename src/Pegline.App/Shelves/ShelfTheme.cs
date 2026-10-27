@@ -10,6 +10,9 @@ internal sealed class ShelfPalette
 
     public required Brush Panel { get; init; }
     public required Brush PanelBorder { get; init; }
+    /// <summary>Preview and palette surfaces: the panel color, nearly opaque.</summary>
+    public required Brush Surface { get; init; }
+    public required Brush Highlight { get; init; }
     public required Brush Rope { get; init; }
     public required Brush Peg { get; init; }
     public required Brush PegShade { get; init; }
@@ -37,6 +40,8 @@ internal sealed class ShelfPalette
     {
         Panel = Frozen(new LinearGradientBrush(Color.FromArgb(0xF2, 0x13, 0x17, 0x20), Color.FromArgb(0xEC, 0x18, 0x1D, 0x28), 90)),
         PanelBorder = Solid(0x30, 0xFF, 0xFF, 0xFF),
+        Surface = Solid(0xF8, 0x16, 0x1B, 0x25),
+        Highlight = Solid(0x2E, 0x3B, 0x8B, 0xF6),
         Rope = Solid(0xB0, 0xC9, 0xC2, 0xB4),
         Peg = Solid(0xFF, 0xE9, 0xDF, 0xCC),
         PegShade = Solid(0xFF, 0xB8, 0xA8, 0x8C),
@@ -56,6 +61,8 @@ internal sealed class ShelfPalette
     {
         Panel = Solid(0xE0, 0x26, 0x28, 0x2C),
         PanelBorder = Solid(0x38, 0xFF, 0xFF, 0xFF),
+        Surface = Solid(0xF5, 0x2B, 0x2D, 0x32),
+        Highlight = Solid(0x2E, 0x60, 0xA5, 0xFA),
         Rope = Solid(0x90, 0xFF, 0xFF, 0xFF),
         Peg = Solid(0xFF, 0xE4, 0xE6, 0xEA),
         PegShade = Solid(0xFF, 0xA9, 0xAE, 0xB6),

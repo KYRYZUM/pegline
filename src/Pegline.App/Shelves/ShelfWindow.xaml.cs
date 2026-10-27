@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Pegline.App.Localization;
+using Pegline.Core.Actions;
 using Pegline.App.Platform;
 using Pegline.Core.Input;
 using Pegline.Core.Models;
@@ -20,6 +21,7 @@ public partial class ShelfWindow : Window
     private readonly SettingsStore _settings;
     private readonly ClipboardWriter _writer;
     private readonly ForegroundTracker _foreground;
+    private readonly Action _quit;
     private readonly ShelfNavigator _nav = new();
     private readonly ThumbnailCache _thumbnails = new();
     private readonly Dictionary<ItemKind, ShelfRowView> _rows = [];
@@ -36,12 +38,13 @@ public partial class ShelfWindow : Window
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
 
-    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground)
+    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit)
     {
         _store = store;
         _settings = settings;
         _writer = writer;
         _foreground = foreground;
+        _quit = quit;
         InitializeComponent();
         _keymap = new Keymap(settings.Current.LocalShortcuts);
         _palette = ShelfPalette.For(settings.Current.Theme);
@@ -51,7 +54,11 @@ public partial class ShelfWindow : Window
         {
             var row = new ShelfRowView(kind, store, _thumbnails);
             row.CardClicked += (_, e) => OnCardClicked(e.Item, e.Args);
-            row.CardDoubleClicked += (_, e) => ShowToast(Loc.T("Coming soon"));
+            row.CardDoubleClicked += (_, e) =>
+            {
+                _nav.Select(e.Item.Id);
+                OpenPreview();
+            };
             row.HeaderClicked += (_, _) => ActivateRow(kind);
             row.PageRequested += (_, direction) => PageRow(kind, direction);
             _rows[kind] = row;
@@ -65,6 +72,7 @@ public partial class ShelfWindow : Window
             if (!IsVisible) return;
             _nav.SetItems(_store.Items);
             Render();
+            SyncPreview();
         });
         _settings.Changed += (_, _) => ApplySettings();
 
@@ -77,11 +85,10 @@ public partial class ShelfWindow : Window
         };
         SearchBox.PreviewKeyDown += OnSearchKeyDown;
         PreviewKeyDown += OnKeyDown;
+        // A tray click or a slow focus hand-off can deactivate the panel right after it opens.
         Deactivated += (_, _) =>
         {
-            // A tray click or a slow focus hand-off can deactivate the panel right after it opens.
-            if (IsVisible && !_holdOpen && !_hiding && !PinnedForDebugging && DateTime.UtcNow - _shownAt > TimeSpan.FromMilliseconds(400))
-                HideShelves(restoreFocus: false);
+            if (DateTime.UtcNow - _shownAt > TimeSpan.FromMilliseconds(400)) ScheduleFocusCheck();
         };
         SourceInitialized += (_, _) =>
         {
@@ -138,6 +145,7 @@ public partial class ShelfWindow : Window
     {
         if (!IsVisible || _hiding) return;
         _hiding = true;
+        CloseChildren();
         _nav.Close();
         var animation = new DoubleAnimation(0, -Panel.ActualHeight - 20, TimeSpan.FromMilliseconds(150)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
         animation.Completed += (_, _) =>
@@ -159,7 +167,7 @@ public partial class ShelfWindow : Window
         var height = Math.Ceiling(Panel.DesiredSize.Height + 2);
         var handle = new WindowInteropHelper(this).Handle;
         for (var pass = 0; pass < 2; pass++) // a second pass settles a DPI change between monitors
-            Win32.SetWindowPos(handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(height * _scale), Win32.SWP_SHOWWINDOW);
+            Win32.SetWindowPos(handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(height * _scale), Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
     }
 
     // ----- Rendering -----
@@ -401,12 +409,26 @@ public partial class ShelfWindow : Window
                 Render();
                 return true;
             case "trash":
-                ConfirmTrash();
+                ConfirmTrash(_nav.SelectedItems());
                 return true;
             case var numbered when numbered.Length == 7 && numbered.StartsWith("select", StringComparison.Ordinal) && char.IsAsciiDigit(numbered[6]):
                 _nav.SelectNumber(numbered[6] - '0');
                 break;
-            case "preview" or "library" or "actions" or "folder" or "name" or "tag" or "export" or "open" or "copyOCR":
+            case "preview":
+                OpenPreview();
+                return true;
+            case "actions":
+                ShowActions(ActionOrigin.Line);
+                return true;
+            case "open":
+                if (_nav.FocusedItem is { Kind: ItemKind.Link } link) OpenInBrowser(link);
+                return true;
+            case "edit":
+                if (_nav.FocusedItem is not { Kind: ItemKind.Text }) return false;
+                OpenPreview();
+                _preview?.BeginEditing();
+                return true;
+            case "library" or "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
                 ShowToast(Loc.T("Coming soon"));
                 return true;
             default:
@@ -483,14 +505,13 @@ public partial class ShelfWindow : Window
             System.Windows.MessageBox.Show(Loc.T("Paste failed: the previous app is no longer available."), "Pegline");
     }
 
-    private void ConfirmTrash()
+    private void ConfirmTrash(IReadOnlyList<ClipItem> items)
     {
-        var items = _nav.SelectedItems();
         if (items.Count == 0) return;
         _holdOpen = true;
         try
         {
-            var answer = MessageBox.Show(this, Loc.T("Move to Trash?") + $"  ({items.Count})", "Pegline", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
+            var answer = MessageBox.Show(_preview is { IsOpen: true } owner ? owner : this, Loc.T("Move to Trash?") + $"  ({items.Count})", "Pegline", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
             if (answer != MessageBoxResult.OK) return;
             _store.MoveToTrash(items.Select(i => i.Id));
             ShowToast(Loc.T("Moved to Trash"));
@@ -498,7 +519,8 @@ public partial class ShelfWindow : Window
         finally
         {
             _holdOpen = false;
-            Activate();
+            if (_preview is { IsOpen: true } preview) preview.Activate();
+            else Activate();
         }
     }
 }

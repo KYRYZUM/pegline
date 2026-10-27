@@ -16,7 +16,9 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 - Pano yakalama: metin, tek başına URL → Links, görsel (PNG / DIB). Gizli, parola yöneticisi, "geçmişe ekleme" işaretli ve dosya kopyaları yok sayılır; Pegline'ın kendi kopyaları tekrar yakalanmaz
 - Aynı metni tekrar kopyalamak yeni kart açmaz (satır sonu / Unicode biçimine duyarsız kimlik)
 - Klavye: oklar, `Tab`, `1–9`, `Alt+←/→`, `Ctrl+←/→`, `Shift+oklar`, `Ctrl+A`, `Enter`, `Ctrl+C`, `Ctrl+Enter` (önceki uygulamaya yapıştır), `P`, `F`, `S`, `Backspace`, `Delete`, `Shift+S` (arama), `Shift+I/T/L`, `Ctrl+Shift+B`, `Esc`
-- Kart tıklaması kopyalar, `Ctrl`/`Shift`+tık seçer
+- Kart tıklaması kopyalar, `Ctrl`/`Shift`+tık seçer, çift tık önizler
+- `Space` önizleme: görsel zoom (%100–400) ve kaydırma, metni yerinde düzenleme (`E`), linki tarayıcıda açma (`Ctrl+O`)
+- `Ctrl+K` Eylemler paleti: tüm komutlar, aranabilir, kısayollarıyla
 - Tür başına saklama süresi; sabitlenen, klasördeki ya da etiketli öğeler süresi dolunca silinmez
 - Genel kısayollar (`Ctrl+Alt+T` askılar, `Ctrl+Alt+S` arama), tepsi simgesi, tek örnek
 

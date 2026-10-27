@@ -56,7 +56,7 @@ public partial class App : Application
 
         var writer = new ClipboardWriter(_store);
         var foreground = new ForegroundTracker();
-        _shelves = new ShelfWindow(_store, _settings, writer, foreground);
+        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
@@ -147,7 +147,7 @@ public partial class App : Application
             _tray?.Notify("Pegline", Loc.F("Shortcut unavailable: {0}", string.Join(", ", failed.Select(a => _settings.Current.GlobalShortcuts[a]))));
     }
 
-    private void Quit()
+    internal void Quit()
     {
         _shelves?.Close();
         Shutdown();

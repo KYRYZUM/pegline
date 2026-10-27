@@ -275,6 +275,34 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    /// <summary>Keeps items in the Library so retention never expires them.</summary>
+    public void Retain(IEnumerable<Guid> ids)
+    {
+        lock (_gate)
+        {
+            var now = _clock();
+            Mutate(Select(ids).Where(i => i.RetainedAt is null).ToList(), item =>
+            {
+                item.RetainedAt = now;
+                item.UpdatedAt = now;
+            });
+        }
+    }
+
+    /// <summary>Replaces a text item's content. Returns false when the text is not admissible as a clip.</summary>
+    public bool EditText(Guid id, string text)
+    {
+        if (!ClipboardAdmission.AdmitsText(text)) return false;
+        lock (_gate)
+        {
+            var item = Find(id);
+            if (item is null || item.Kind != ItemKind.Text || item.IsTrashed) return false;
+            if (item.Text == text) return true;
+            SetDetails(id, text: text);
+            return true;
+        }
+    }
+
     // ----- Organization -----
 
     public void NameAndPin(Guid id, string name)
