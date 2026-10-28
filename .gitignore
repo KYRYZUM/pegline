@@ -8,3 +8,6 @@ TestResults/
 artifacts/
 publish/
 *.log
+
+# MobileCLIP-S2 models (397 MB), prepared by scripts/prepare-search-models.ps1
+assets/CLIP/

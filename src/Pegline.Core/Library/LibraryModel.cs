@@ -1,5 +1,6 @@
 using Pegline.Core.Input;
 using Pegline.Core.Models;
+using Pegline.Core.Search;
 using Pegline.Core.Storage;
 using Pegline.Core.Text;
 
@@ -79,6 +80,72 @@ public sealed class LibraryModel
 
     /// <summary>Re-runs the query. A reset clears selection and focus (scope and filter changes).</summary>
     public void Reload(bool reset = false)
+    {
+        SyncVisual();
+        Run(reset);
+    }
+
+    // ----- Visual search -----
+
+    /// <summary>Ranks images by what they show; null when this build has no model.</summary>
+    public IVisualSearch? Visual { get; set; }
+
+    /// <summary>True while visual matches for the current search are being computed.</summary>
+    public bool VisualPending { get; private set; }
+
+    /// <summary>Asks again for visual matches (new images were indexed).</summary>
+    public void RefreshVisual()
+    {
+        _visualFor = null;
+        Reload();
+    }
+
+    /// <summary>Visual results depend on the search and the scope it ranks in, not on order.</summary>
+    private static LibraryQuery VisualKey(LibraryQuery query) => query with { VisualIds = [], Sort = LibrarySort.Newest };
+
+    public static bool WantsVisual(LibraryQuery query) =>
+        query.Search.Trim().Length > 0 && query.SearchMode != LibrarySearchMode.Text
+        && query.Kind is null or ItemKind.Image && query.Scope.Kind != LibraryScopeKind.Trash;
+
+    private LibraryQuery? _visualFor;
+    private CancellationTokenSource? _visualCancel;
+
+    private void SyncVisual()
+    {
+        var key = VisualKey(Query);
+        if (key.Equals(_visualFor)) return;
+        _visualFor = key;
+        _visualCancel?.Cancel();
+        VisualPending = false;
+        if (Query.VisualIds.Count > 0) Query = Query with { VisualIds = [] };
+        if (Visual is not { } visual || !WantsVisual(Query)) return;
+        // Rank within the chosen folder, tag, pin and date scope: a strong match elsewhere must not hide one here.
+        var corpus = Query with { Search = "", Kind = ItemKind.Image, SearchMode = LibrarySearchMode.All, VisualIds = [] };
+        var eligible = _engine.Run(_store.Items, _store.Folders, corpus, _clock());
+        if (eligible.Count == 0) return;
+        var cancel = _visualCancel = new CancellationTokenSource();
+        VisualPending = true;
+        _ = FetchVisual(visual, key, Query.Search.Trim(), eligible, cancel.Token);
+    }
+
+    private async Task FetchVisual(IVisualSearch visual, LibraryQuery key, string text, IReadOnlyList<Guid> eligible, CancellationToken cancel)
+    {
+        IReadOnlyList<Guid> ids;
+        try
+        {
+            ids = await visual.SearchAsync(text, eligible, cancel);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        if (cancel.IsCancellationRequested || !key.Equals(_visualFor)) return;
+        VisualPending = false;
+        if (ids.Count > 0) Query = Query with { VisualIds = ids };
+        Run(reset: false);
+    }
+
+    private void Run(bool reset)
     {
         var ids = _engine.Run(_store.Items, _store.Folders, Query, _clock());
         _ids = [.. ids];

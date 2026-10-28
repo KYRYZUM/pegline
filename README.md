@@ -13,7 +13,7 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 ## Şu an çalışanlar
 
 - Üç askı (Görseller / Metinler / Linkler), kavisli ipler, mandallar, sayfalama (görünür alana göre en fazla 9 kart)
-- Pano yakalama: metin, tek başına URL → Links, görsel (PNG / DIB). Gizli, parola yöneticisi, "geçmişe ekleme" işaretli ve dosya kopyaları yok sayılır; Pegline'ın kendi kopyaları tekrar yakalanmaz
+- Pano yakalama: metin, tek başına URL → Links, görsel (PNG / DIB; tarayıcıda "Görseli kopyala" gibi yanında adres/metin olan kopyalarda görsel alınır). Gezgin'de kopyalanan görsel dosyaları da toplanır (orijinaller değişmez); diğer dosya kopyaları, gizli, parola yöneticisi ve "geçmişe ekleme" işaretli kopyalar yok sayılır; Pegline'ın kendi kopyaları tekrar yakalanmaz
 - Aynı metni tekrar kopyalamak yeni kart açmaz (satır sonu / Unicode biçimine duyarsız kimlik)
 - Klavye: oklar, `Tab`, `1–9`, `Alt+←/→`, `Ctrl+←/→`, `Shift+oklar`, `Ctrl+A`, `Enter`, `Ctrl+C`, `Ctrl+Enter` (önceki uygulamaya yapıştır), `P`, `F`, `S`, `Backspace`, `Delete`, `Shift+S` (arama), `Shift+I/T/L`, `Ctrl+Shift+B`, `Esc`
 - Kart tıklaması kopyalar, `Ctrl`/`Shift`+tık seçer, çift tık önizler
@@ -25,17 +25,22 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 - `Ctrl+Enter` yapıştırma yalnızca önceki uygulamadaki aynı alana yapılır; parola alanları ve değişmiş hedefler reddedilir (UI Automation, alanın içeriği okunmaz)
 - Görsel işaretleme (`M`) ve kırpma (`C`): kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin; renk / kalınlık / dolgu; orijinal dosya hiç değişmez, işaretler sonradan düzenlenebilir
 - Ekran görüntüsü (`Ctrl+Alt+A`), Windows Ekran görüntüleri klasörü ve en fazla 3 izlenen klasör; görsellerdeki yazı cihazda tanınır (Windows OCR), aranabilir ve `Ctrl+Shift+C` ile kopyalanır
+- Görsel arama: Kütüphanede görseller içeriğine göre bulunur ("red car", "a cat on a sofa"); Apple MobileCLIP-S2, tamamen cihazda (ONNX Runtime, CPU). Dizinleme düşük öncelikte, tek çekirdekte çalışır ve önde tam ekran bir uygulama (oyun, video) varken bekler
+- Kütüphane filtre paneli: arama yeri (metin ve görsel / yalnızca metin ve OCR / yalnızca görsel), eklenme tarihi, alan adı, etiketler (hepsi eşleşsin), yalnızca sabitlenenler
 - Tür başına saklama süresi; sabitlenen, klasördeki ya da etiketli öğeler süresi dolunca silinmez
 - Genel kısayollar (`Ctrl+Alt+T` askılar, `Ctrl+Alt+S` arama), tepsi simgesi, tek örnek
 
 ## Geliştirme
 
 ```powershell
+pwsh scripts/prepare-search-models.ps1   # görsel arama modelleri (bir kez, 383 MB, SHA-256 doğrulamalı)
 dotnet test                     # çekirdek + davranış sözleşmesi testleri
 dotnet run --project src/Pegline.App
 ```
 
-Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --ocr görsel.png çıktı.txt` OCR'ı tek dosyada dener; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
+Görsel arama modelleri (`assets/CLIP`, Git dışında) derlemeye eklenir; çalışan uygulama hiçbir şey indirmez, sorgu göndermez. Modeller olmadan da derlenir ve çalışır, yalnızca görsel arama kapalı olur.
+
+Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --ocr görsel.png çıktı.txt` OCR'ı tek dosyada dener; `--clip-check çıktı.txt` model dışa aktarımını (kırmızı daire / mavi kare sıralaması, hız) doğrular; `--visual-search "tarif" çıktı.txt` geliştirme kütüphanesini dizinleyip bir tarifi arar; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop|library-filters> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
 
 ## Yapı
 

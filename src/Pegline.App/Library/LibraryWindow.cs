@@ -1,4 +1,4 @@
-#pragma warning disable WPF0001 // Fluent ThemeMode is experimental in WPF
+﻿#pragma warning disable WPF0001 // Fluent ThemeMode is experimental in WPF
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -58,12 +58,16 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private HostedWindow? _picker;
     private readonly Organizer _organizer;
     private readonly Capture.OcrService _ocr;
+    private readonly Search.VisualSearchService _visual;
+    private readonly LibraryFilterPanel _filters;
+    private Border? _filterButton;
     private bool _quitting;
 
-    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer, Capture.OcrService ocr)
+    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer, Capture.OcrService ocr, Search.VisualSearchService visual)
     {
         _organizer = organizer;
         _ocr = ocr;
+        _visual = visual;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -75,6 +79,18 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         {
             ListMode = settings.Current.LibraryListMode,
             Keymap = new Keymap(settings.Current.LocalShortcuts),
+            Visual = visual.IsBundled ? visual : null,
+        };
+        _filters = new LibraryFilterPanel(_model, store, _palette, VisualNote);
+        _filters.ClearRequested += (_, _) => _search.Text = "";
+        _filters.Closed += (_, _) => FocusGrid();
+        _visual.StatusChanged += (_, _) =>
+        {
+            if (IsVisible) QueueRender();
+        };
+        _visual.Indexed += (_, _) =>
+        {
+            if (IsVisible && LibraryModel.WantsVisual(_model.Query)) _model.RefreshVisual();
         };
         _grid = new LibraryGrid(store, new ThumbnailCache(), _palette);
         _sidebar = new LibrarySidebar(store, _palette);
@@ -188,6 +204,14 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     }
 
 #if DEBUG
+    internal Window FiltersForSnapshot()
+    {
+        _model.Open();
+        _model.SetDays(7);
+        _model.SetDomain("youtube.com");
+        return new Window { Content = _filters.DetachForSnapshot() };
+    }
+
     internal void ShowForSnapshot(LibraryScope? scope, bool list)
     {
         _model.ListMode = list;
@@ -401,9 +425,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     {
         if (sidebar) _sidebar.Render(_model.Query.Scope);
         _title.Text = ScopeTitle(_model.Query.Scope);
-        _count.Text = _model.Selected.Count > 1
+        _count.Text = (_model.Selected.Count > 1
             ? Loc.F("{0} of {1} selected", _model.Selected.Count, _model.Ids.Count)
-            : Loc.F("{0} items", _model.Ids.Count);
+            : Loc.F("{0} items", _model.Ids.Count))
+            + (_model.VisualPending ? " · " + Loc.T("Searching images…") : "")
+            + (_visual.Progress is { Total: > 0 } progress ? " · " + Loc.F("Reading images… {0} of {1}", progress.Done, progress.Total) : "");
         _kinds.Children.Clear();
         _kinds.Children.Add(KindChip(Loc.T("All types"), null));
         _kinds.Children.Add(KindChip(Loc.T("Images"), ItemKind.Image));
@@ -428,6 +454,8 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             _model.Perform("pinnedOnly");
             FocusGrid();
         }));
+        _filterButton = ToolButton(Glyphs.Filter, Loc.T("Filters"), LibraryFilterPanel.HasPanelFilters(_model.Query), () => RunMenu("filters"));
+        _tools.Children.Add(_filterButton);
         _tools.Children.Add(ToolButton("", Loc.T("Sort"), false, ShowSortMenu));
         _tools.Children.Add(ToolButton(_model.ListMode ? "" : "", Loc.T(_model.ListMode ? "Grid" : "List"), false, () => RunMenu(_model.ListMode ? "grid" : "list")));
         _tools.Children.Add(ToolButton("", Loc.T(_settings.Current.LibraryInspectorVisible ? "Hide details" : "Show details"), _settings.Current.LibraryInspectorVisible, () => RunMenu("toggleInspector")));
@@ -943,7 +971,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.retain", "menu.restore", "menu.editDetails", "menu.scopeSaved", "menu.scopeFavorites", "menu.scopeUnorganized",
         "menu.scopeRecent", "menu.scopeTrash", "menu.grid", "menu.list", "menu.toggleSidebar", "menu.toggleInspector",
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
-        "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.daysAny", "menu.days7", "menu.days30",
+        "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.searchVisual", "menu.filters", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
         "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR",
         "menu.openScreenshotsFolder", "menu.resetZoom",
@@ -1150,6 +1178,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "sortRelevance": _model.SetSort(LibrarySort.Relevance); break;
             case "searchAll": _model.SetSearchMode(LibrarySearchMode.All); break;
             case "searchText": _model.SetSearchMode(LibrarySearchMode.Text); break;
+            case "searchVisual": _model.SetSearchMode(LibrarySearchMode.Visual); break;
+            case "filters":
+                Render(sidebar: false);
+                if (_filterButton is not null) _filters.Toggle(_filterButton);
+                break;
             case "daysAny": _model.SetDays(null); break;
             case "days7": _model.SetDays(7); break;
             case "days30": _model.SetDays(30); break;
@@ -1177,6 +1210,15 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "quit": _quit(); break;
             default: Notify(Loc.T("Coming soon")); break;
         }
+    }
+
+    /// <summary>What the filter panel says about visual search in this build.</summary>
+    private string VisualNote()
+    {
+        if (!_visual.IsBundled) return Loc.T("Visual search is not included in this build; text and OCR search still work.");
+        if (_visual.IsBroken) return Loc.T("Visual search is unavailable: its model files are damaged. Reinstall Pegline to restore them.");
+        if (!_settings.Current.IndexImages) return Loc.T("Image indexing is turned off in the tray menu.");
+        return _visual.Progress is { Total: > 0 } progress ? Loc.F("Reading images… {0} of {1}", progress.Done, progress.Total) : "";
     }
 
     private void ShowSortMenu()

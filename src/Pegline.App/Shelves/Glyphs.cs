@@ -14,6 +14,7 @@ internal static class Glyphs
     public const string Command = "";
     public const string Close = "";
     public const string Search = "";
+    public const string Filter = "";
     public const string Link = "";
     public const string OpenExternal = "";
 

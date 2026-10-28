@@ -6,7 +6,7 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 ## Faz 1 — Temel ve askılar
 - [x] .NET 10 çözümü, Core / App / Tests ayrımı, CI
 - [x] SQLite Library deposu (işlem + geri alma), içerik adresli medya deposu
-- [x] Pano dinleyici: metin / link / görsel (PNG, DIB), gizli ve geçmiş dışı kopyalar, dosya kopyaları, kendi kopyaları
+- [x] Pano dinleyici: metin / link / görsel (PNG, DIB), gizli ve geçmiş dışı kopyalar, kendi kopyaları; Gezgin'den kopyalanan görsel dosyaları, görselin yanında metin olan kopyalar (tarayıcı), alfası boş 32 bit DIB'ler
 - [x] Metin kimliği ile tekrar önleme (sözleşme testi)
 - [x] Tür başına saklama süresi, saklanan kayıtların korunması, süresi dolanı Çöp'e taşıma
 - [x] Askı gezinme durum makinesi (13 paylaşılan sözleşme senaryosu)
@@ -30,7 +30,7 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] Tür filtreleri (`Ctrl+0..3`), sıralama (yeni/eski/başlık/son kopyalanan/en iyi eşleşme), tarih filtresi, aksan duyarsız arama, klavye sözleşmesi (library-keyboard, 10 senaryo)
 - [x] Çöp: `S`/`Delete` geri alınabilir taşır, `Backspace`/`Ctrl+Z` geri alır, Çöp görünümünde tuşlar asla kalıcı silmez; geri getir, kalıcı sil, Çöp'ü boşalt, kaydedilmemişleri temizle onayı
 - [x] Kütüphanede önizleme (`Space`), Eylemler paleti (kapsam, görünüm, sıralama, klasör komutları), sağ tık menüsü; askılardan `L`, tepsi ve genel kısayol ile açılır
-- [ ] Alan adı ve çoklu etiket filtresi arayüzü (model hazır; Faz 7 filtre paneliyle)
+- [x] Alan adı ve çoklu etiket filtresi arayüzü (Faz 7 filtre paneli)
 
 ## Faz 4 — Düzenleme ve aktarım
 - [x] Klasöre sabitle (`Shift+P`, son kullanılanlar, `Ctrl+N`, klasörsüz sabitle), Adlandır ve sabitle (`Alt+P`, toplu sıralı, arada silineni atlar), etiket ekle / oluştur (`Ctrl+Shift+T`); kardeş klasör adları benzersiz
@@ -52,8 +52,10 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: `Ctrl+Alt+A` ekran yakalama elle denenecek
 
 ## Faz 7 — Görsel arama
-- [ ] MobileCLIP-S2 ONNX (Microsoft.ML.OnnxRuntime), arka plan indeksleme
-- [ ] Kütüphanede metin / görsel / birleşik mod ve tür, tarih, alan adı, etiket, klasör, sabitleme filtreleri
+- [x] MobileCLIP-S2 ONNX (Microsoft.ML.OnnxRuntime, CPU): sabitlenmiş dışa aktarım (dosya başına boyut + SHA-256), CLIP BPE tokenizer, referansla aynı letterbox + karo politikası ve eşleşme eşikleri; doğrulama: kırmızı daire / mavi kare sıralaması, kosinüsler referansla ±0.01
+- [x] Arka plan dizinleme: tek çekirdek, düşük öncelik, tam ekran uygulama önündeyken bekler, boşta model bellekten çıkar; görsel başına ~80 ms; düzenlenen / silinen görselin vektörü atılır, eski sonuç asla gösterilmez
+- [x] Kütüphanede birleşik / yalnızca metin / yalnızca görsel arama (kapsam içinde sıralama, "En iyi eşleşme"de metin eşleşmeleri önce), filtre paneli: tarih, alan adı, etiketler, sabitlenenler; tür ve klasör mevcut çiplerden / kenar çubuğundan
+- [ ] Canlı kabul: gerçek kütüphanede görsel arama elle denenecek
 
 ## Faz 8 — Linkler ve kayıtlar
 - [ ] Link zenginleştirme: site / YouTube başlığı, yazar, küçük resim (yerel ve gizli parametreli URL'ler hariç)

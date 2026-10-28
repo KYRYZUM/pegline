@@ -36,6 +36,7 @@ public partial class App : Application
     private LibraryWindow? _library;
     private DispatcherTimer? _expiry;
     private OcrService? _ocr;
+    private Search.VisualSearchService? _visual;
     private FolderWatcher? _folders;
     private readonly ScreenshotPairing _pairing = new();
     private string _watchedKey = "";
@@ -71,8 +72,9 @@ public partial class App : Application
         files.CleanDragCopies();
         var organizer = new Organizer(_store, _settings, files);
         _ocr = new OcrService(_store, Dispatcher);
+        _visual = new Search.VisualSearchService(_store, Dispatcher, Path.Combine(AppContext.BaseDirectory, "CLIP"), Path.Combine(DataDirectory, "search"), () => _settings.Current.IndexImages);
         _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer, _ocr);
-        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer, _ocr);
+        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer, _ocr, _visual);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
@@ -106,6 +108,7 @@ public partial class App : Application
         Dispatcher.BeginInvoke(() =>
         {
             if (_settings.Current.IndexImages) _ocr.Enqueue(_store.Items);
+            _visual.Start();
         }, DispatcherPriority.ApplicationIdle);
 
         new Thread(() =>
@@ -116,6 +119,42 @@ public partial class App : Application
 
 #if DEBUG
         // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--clip-check", var clipOutput])
+        {
+            // Development aid: checks the bundled MobileCLIP export (ranking and speed), then exits.
+            File.WriteAllText(clipOutput, Search.VisualSearchService.SelfCheck(_store, Path.Combine(AppContext.BaseDirectory, "CLIP")));
+            Shutdown();
+            return;
+        }
+        if (e.Args is ["--visual-search", var phrase, var visualOutput])
+        {
+            // Development aid: indexes the dev library, ranks every image against a description, then exits.
+            _visual.PauseForFullscreen = false;
+            foreach (var sample in Directory.Exists(Path.Combine(DataDirectory, "visual-samples")) ? Directory.GetFiles(Path.Combine(DataDirectory, "visual-samples"), "*.png") : [])
+            {
+                if (FolderWatcher.ReadAsPng(sample) is { } png) _store.Retain([_store.InsertImage(png, sample).Id]);
+                File.Delete(sample); // imported once
+            }
+            _visual.Start();
+            var started = DateTime.UtcNow;
+            var poll = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            poll.Tick += async (_, _) =>
+            {
+                if (!_visual.Settled && DateTime.UtcNow - started < TimeSpan.FromMinutes(5)) return;
+                poll.Stop();
+                var images = _store.Items.Where(i => i.Kind == ItemKind.Image && !i.IsTrashed).ToList();
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                var ids = await _visual.SearchAsync(phrase, [.. images.Select(i => i.Id)], CancellationToken.None);
+                var lines = new List<string> { $"available={_visual.IsAvailable} images={images.Count} indexed in {(DateTime.UtcNow - started).TotalSeconds:0.0}s search {watch.ElapsedMilliseconds}ms matches={ids.Count}" };
+                lines.AddRange(ids.Select(id => _store.Find(id) is { } item ? $"{item.PixelWidth}x{item.PixelHeight} {item.DisplayTitle} | {item.OcrText.Split('\n')[0]}" : id.ToString()));
+                foreach (var (id, score) in await _visual.ScoresAsync(phrase))
+                    lines.Add($"  score {score:0.000} {_store.Find(id)?.PixelWidth}x{_store.Find(id)?.PixelHeight} {_store.Find(id)?.DisplayTitle}");
+                File.WriteAllLines(visualOutput, lines);
+                Shutdown();
+            };
+            poll.Start();
+            return;
+        }
         if (e.Args is ["--ocr", var ocrImage, var ocrOutput])
         {
             // Development aid: recognizes one file with the same engine the app uses.
@@ -156,6 +195,11 @@ public partial class App : Application
                 _ => organizer.NameAndPin(palette, ids, _ => { }),
             };
             DevSnapshot.CaptureDetached(window, picker == "picker-name" ? new Size(556, 228) : new Size(556, 456), image, () => Shutdown());
+            return;
+        }
+        if (e.Args is ["--snapshot", "library-filters", var filtersShot])
+        {
+            DevSnapshot.CaptureDetached(_library.FiltersForSnapshot(), new Size(336, 600), filtersShot, () => Shutdown());
             return;
         }
         if (e.Args is ["--snapshot", var target, var output])
@@ -339,6 +383,7 @@ public partial class App : Application
         _hotKeys?.Dispose();
         _clipboard?.Dispose();
         _folders?.Dispose();
+        _visual?.Dispose();
         _messages?.Dispose();
         _tray?.Dispose();
         _store?.Dispose();

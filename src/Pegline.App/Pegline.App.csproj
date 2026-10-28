@@ -22,7 +22,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- MobileCLIP-S2 (scripts/prepare-search-models.ps1). Builds without it run; visual search is then unavailable. -->
+    <None Include="..\..\assets\CLIP\*" Link="CLIP\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\assets\CLIP\model-source.json')" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Pegline.Core\Pegline.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.30.0" />
   </ItemGroup>
 
 </Project>

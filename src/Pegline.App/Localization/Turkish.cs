@@ -1,4 +1,4 @@
-namespace Pegline.App.Localization;
+﻿namespace Pegline.App.Localization;
 
 internal static class Turkish
 {
@@ -352,7 +352,6 @@ internal static class Turkish
         ["Collect the Windows Screenshots folder"] = "Windows Ekran görüntüleri klasörünü topla",
         ["Image text copied"] = "Görseldeki yazı kopyalandı",
         ["No text found"] = "Yazı bulunamadı",
-        ["Recognize text in images"] = "Görsellerdeki yazıyı tanı",
         ["Recognizing image text locally…"] = "Görseldeki yazı cihazında tanınıyor…",
         ["Screen capture is unavailable"] = "Ekran görüntüsü alınamıyor",
         ["Show shelves after a screenshot"] = "Ekran görüntüsünden sonra askıları göster",
@@ -361,5 +360,20 @@ internal static class Turkish
         ["Text recognition is unavailable. Add a language with optical character recognition in Windows Settings."] = "Yazı tanıma kullanılamıyor. Windows Ayarları'nda optik karakter tanıma içeren bir dil ekle.",
         ["Up to three folders can be watched."] = "En fazla üç klasör izlenebilir.",
         ["Watched folders"] = "İzlenen klasörler",
+        ["Search in"] = "Şurada ara",
+        ["Domain"] = "Alan adı",
+        ["Apply"] = "Uygula",
+        ["Tags (match all)"] = "Etiketler (hepsi eşleşsin)",
+        ["Show"] = "Göster",
+        ["Pinned items only"] = "Yalnızca sabitlenenler",
+        ["Searching images…"] = "Görsellerde aranıyor…",
+        ["Reading images… {0} of {1}"] = "Görseller okunuyor… {0} / {1}",
+        ["Image text is read locally. Describe images in English for best visual matches."] = "Görsellerdeki yazı bu bilgisayarda okunur. En iyi görsel eşleşme için görseli İngilizce tarif et (ör. \"red car\").",
+        ["Domain, e.g. youtube.com"] = "Alan adı, ör. youtube.com",
+        ["Visual search is not included in this build; text and OCR search still work."] = "Bu sürümde görsel arama yok; metin ve OCR araması çalışır.",
+        ["Visual search is unavailable: its model files are damaged. Reinstall Pegline to restore them."] = "Görsel arama kullanılamıyor: model dosyaları bozuk. Geri getirmek için Pegline'ı yeniden kur.",
+        ["Image indexing is turned off in the tray menu."] = "Görsel dizinleme tepsi menüsünden kapatılmış.",
+        ["Index images for search"] = "Görselleri aramaya hazırla (yazı ve içerik)",
+        ["Date added"] = "Eklenme tarihi",
     };
 }

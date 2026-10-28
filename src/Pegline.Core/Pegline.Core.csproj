@@ -10,4 +10,8 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Search\search-model-config.json" LogicalName="Pegline.Core.Search.search-model-config.json" />
+  </ItemGroup>
+
 </Project>
