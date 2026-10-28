@@ -20,10 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Contracts\*.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\Pegline.Core\Pegline.Core.csproj" />
   </ItemGroup>
 

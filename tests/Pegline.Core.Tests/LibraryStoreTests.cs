@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using Pegline.Core.Models;
+﻿using Pegline.Core.Models;
 using Pegline.Core.Storage;
 
 namespace Pegline.Core.Tests;
@@ -196,77 +195,119 @@ public sealed class LibraryStoreTests : IDisposable
         Assert.Equal(["Café", "office"], store.Find(item.Id)!.Tags);
     }
 
-    public static TheoryData<string> CleanupScenarios()
+    /// <summary>
+    /// A history with one unsaved copy of each kind next to records the user kept in every way there is (pinned once,
+    /// pinned, filed, tagged) and one already in Trash. "Clear unsaved copies" may only ever take the unsaved three.
+    /// </summary>
+    private sealed class History
     {
-        var data = new TheoryData<string>();
-        foreach (var s in CleanupContract.RootElement.GetProperty("scenarios").EnumerateArray()) data.Add(s.GetProperty("id").GetString()!);
-        return data;
-    }
+        public History(LibraryStore store)
+        {
+            Store = store;
+            var folder = store.CreateFolder("Kept");
+            Photo = store.InsertImage(TestImages.Png(3, 3, 40)).Id;
+            Note = store.InsertText("loose note").Id;
+            Link = store.InsertLink("https://example.org/loose").Id;
+            var once = store.InsertText("pinned for a while");
+            store.TogglePin([once.Id], true);
+            store.TogglePin([once.Id], false);
+            OncePinned = once.Id;
+            PinnedPhoto = store.InsertImage(TestImages.Png(4, 3, 90)).Id;
+            store.TogglePin([PinnedPhoto], true);
+            var filed = store.InsertLink("https://example.org/filed");
+            store.AddToFolder([filed.Id], folder.Id, pin: false);
+            Filed = filed.Id;
+            var tagged = store.InsertText("tagged note");
+            store.AddTags([tagged.Id], ["kept"]);
+            Tagged = tagged.Id;
+            var binned = store.InsertLink("https://example.org/binned");
+            store.MoveToTrash([binned.Id]);
+            Binned = binned.Id;
+        }
 
-    private static readonly JsonDocument CleanupContract = JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Contracts", "history-cleanup.json")));
+        public LibraryStore Store { get; }
+        public Guid Photo { get; }
+        public Guid Note { get; }
+        public Guid Link { get; }
+        public Guid OncePinned { get; }
+        public Guid PinnedPhoto { get; }
+        public Guid Filed { get; }
+        public Guid Tagged { get; }
+        public Guid Binned { get; }
+
+        public void AssertKeptRecordsUntouched()
+        {
+            foreach (var id in new[] { OncePinned, PinnedPhoto, Filed, Tagged })
+                Assert.False(Store.Find(id)!.IsTrashed);
+            Assert.True(Store.Find(Binned)!.IsTrashed);
+        }
+    }
 
     [Theory]
-    [MemberData(nameof(CleanupScenarios))]
-    public void HistoryCleanupContract(string id)
+    [InlineData(null)]
+    [InlineData(ItemKind.Image)]
+    [InlineData(ItemKind.Text)]
+    [InlineData(ItemKind.Link)]
+    public void ClearingUnsavedCopiesTakesOnlyTheChosenKind(ItemKind? kind)
     {
         using var store = Open();
-        var root = CleanupContract.RootElement;
-        var scenario = root.GetProperty("scenarios").EnumerateArray().Single(s => s.GetProperty("id").GetString() == id);
-        var records = new Dictionary<string, Guid>();
-        var folder = store.CreateFolder("Saved");
-        foreach (var record in root.GetProperty("records").EnumerateArray())
-        {
-            var name = record.GetProperty("id").GetString()!;
-            var item = Insert(store, record.GetProperty("kind").GetString()!, name);
-            records[name] = item.Id;
-            switch (record.TryGetProperty("save", out var save) ? save.GetString() : null)
-            {
-                case "unpin": store.TogglePin([item.Id], true); store.TogglePin([item.Id], false); break;
-                case "pin": store.TogglePin([item.Id], true); break;
-                case "folder": store.AddToFolder([item.Id], folder.Id, pin: false); break;
-                case "tag": store.AddTags([item.Id], ["kept"]); break;
-                case "trash": store.MoveToTrash([item.Id]); break;
-            }
-        }
-        var kind = scenario.GetProperty("kind").GetString() switch
-        {
-            "image" => ItemKind.Image,
-            "text" => ItemKind.Text,
-            "link" => (ItemKind?)ItemKind.Link,
-            _ => null,
-        };
+        var history = new History(store);
+        var unsaved = new Dictionary<ItemKind, Guid> { [ItemKind.Image] = history.Photo, [ItemKind.Text] = history.Note, [ItemKind.Link] = history.Link };
+        var expected = unsaved.Where(p => kind is null || p.Key == kind).Select(p => p.Value).Order().ToList();
+
         var snapshot = store.SnapshotUnsavedHistory(kind);
-        Assert.Equal(Names(scenario, "captured").Select(n => records[n]).Order(), snapshot.Entries.Select(e => e.Id).Order());
+        Assert.Equal(expected, snapshot.Entries.Select(e => e.Id).Order());
+        var trashed = store.ClearUnsavedHistory(snapshot);
 
-        foreach (var name in Names(scenario, "retainAfterSnapshot")) store.TogglePin([records[name]], true);
-        foreach (var name in Names(scenario, "recopyAfterSnapshot")) Insert(store, name.Split('-')[1], name);
-        var later = scenario.TryGetProperty("newCopyAfterSnapshot", out var n) && n.GetBoolean() ? store.InsertText("later copy") : null;
-        var cancel = scenario.TryGetProperty("cancel", out var c) && c.GetBoolean();
-        var before = store.Items.Select(i => (i.Id, i.TrashedAt)).ToList();
+        Assert.Equal(expected, trashed.Order());
+        history.AssertKeptRecordsUntouched();
 
-        var trashed = cancel ? [] : store.ClearUnsavedHistory(snapshot);
-
-        Assert.Equal(Names(scenario, "trashed").Select(x => records[x]).Order(), trashed.Order());
-        if (cancel) Assert.Equal(before, store.Items.Select(i => (i.Id, i.TrashedAt)).ToList());
-        if (later is not null) Assert.False(store.Find(later.Id)!.IsTrashed);
-        Assert.False(store.Find(records["pinned-image"])!.IsTrashed);
-        Assert.False(store.Find(records["saved-once"])!.IsTrashed);
-
-        // One recoverable transaction.
-        if (trashed.Count > 0)
-        {
-            store.Restore(trashed);
-            Assert.All(trashed, x => Assert.True(store.Find(x)!.IsOnShelf));
-        }
+        // It is one Trash transaction, and restoring it puts the same records back on the shelves.
+        store.Restore(trashed);
+        Assert.All(trashed, id => Assert.True(store.Find(id)!.IsOnShelf));
     }
 
-    private static ClipItem Insert(LibraryStore store, string kind, string name) => kind switch
+    [Fact]
+    public void ARecordKeptWhileConfirmingAndALaterCopyAreSpared()
     {
-        "image" => store.InsertImage(TestImages.Png(name.Length + 1, 2)),
-        "link" => store.InsertLink("https://example.com/" + name),
-        _ => store.InsertText("text " + name),
-    };
+        using var store = Open();
+        var history = new History(store);
+        var snapshot = store.SnapshotUnsavedHistory(null);
 
-    private static IEnumerable<string> Names(JsonElement scenario, string property) =>
-        scenario.TryGetProperty(property, out var value) ? value.EnumerateArray().Select(e => e.GetString()!) : [];
+        store.TogglePin([history.Note], true);
+        var later = store.InsertText("copied after the question");
+        var trashed = store.ClearUnsavedHistory(snapshot);
+
+        Assert.Equal(new[] { history.Photo, history.Link }.Order(), trashed.Order());
+        Assert.False(store.Find(later.Id)!.IsTrashed);
+        Assert.False(store.Find(history.Note)!.IsTrashed);
+        history.AssertKeptRecordsUntouched();
+    }
+
+    [Fact]
+    public void CopyingTheSameContentAgainWhileConfirmingSparesIt()
+    {
+        using var store = Open();
+        var history = new History(store);
+        var snapshot = store.SnapshotUnsavedHistory(null);
+
+        // A recopy reuses the record, which makes it newer than the question that was asked.
+        store.InsertText("loose note");
+        store.InsertLink("https://example.org/loose");
+        var trashed = store.ClearUnsavedHistory(snapshot);
+
+        Assert.Equal([history.Photo], trashed);
+        history.AssertKeptRecordsUntouched();
+    }
+
+    [Fact]
+    public void AskingWithoutConfirmingChangesNothing()
+    {
+        using var store = Open();
+        var history = new History(store);
+        var before = store.Items.Select(i => (i.Id, i.TrashedAt, i.UpdatedAt)).ToList();
+        _ = store.SnapshotUnsavedHistory(null);
+        Assert.Equal(before, store.Items.Select(i => (i.Id, i.TrashedAt, i.UpdatedAt)).ToList());
+        history.AssertKeptRecordsUntouched();
+    }
 }

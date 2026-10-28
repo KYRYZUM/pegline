@@ -7,9 +7,9 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] .NET 10 çözümü, Core / App / Tests ayrımı, CI
 - [x] SQLite Library deposu (işlem + geri alma), içerik adresli medya deposu
 - [x] Pano dinleyici: metin / link / görsel (PNG, DIB), gizli ve geçmiş dışı kopyalar, kendi kopyaları; Gezgin'den kopyalanan görsel dosyaları, görselin yanında metin olan kopyalar (tarayıcı), alfası boş 32 bit DIB'ler
-- [x] Metin kimliği ile tekrar önleme (sözleşme testi)
+- [x] Metin kimliği ile tekrar önleme
 - [x] Tür başına saklama süresi, saklanan kayıtların korunması, süresi dolanı Çöp'e taşıma
-- [x] Askı gezinme durum makinesi (13 paylaşılan sözleşme senaryosu)
+- [x] Askı gezinme durum makinesi (13 davranış testi)
 - [x] Kısayol haritası: yeniden atama, devre dışı bırakma, varsayılan takma adlar
 - [x] Askı penceresi: kayan panel, kavisli ipler, mandallar, numaralı kartlar, sayfalama, tema / kart boyutu altyapısı
 - [x] Kopyala (`Enter` kapatır, `Ctrl+C` açık tutar), `Ctrl+Enter` önceki uygulamaya yapıştır, sabitle, askıdan indir + geri al (32), Çöp'e taşı
@@ -27,7 +27,7 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 ## Faz 3 — Kütüphane penceresi
 - [x] Izgara / liste (sanallaştırılmış, 20 000 kayıt), kenar çubuğu (Kütüphanem, Favoriler, Düzenlenmemiş, Son kopyalar, Çöp), klasörler (bir alt seviye), etiketler, sayılar
 - [x] Otomatik kaydeden ayrıntı paneli (ad, içerik, not), klasör/etiket çıkarma, not oluşturma (`Ctrl+N`), klasör oluştur / yeniden adlandır / kaldır, etiket yeniden adlandır / kaldır
-- [x] Tür filtreleri (`Ctrl+0..3`), sıralama (yeni/eski/başlık/son kopyalanan/en iyi eşleşme), tarih filtresi, aksan duyarsız arama, klavye sözleşmesi (library-keyboard, 10 senaryo)
+- [x] Tür filtreleri (`Ctrl+0..3`), sıralama (yeni/eski/başlık/son kopyalanan/en iyi eşleşme), tarih filtresi, aksan duyarsız arama, klavye davranış testleri
 - [x] Çöp: `S`/`Delete` geri alınabilir taşır, `Backspace`/`Ctrl+Z` geri alır, Çöp görünümünde tuşlar asla kalıcı silmez; geri getir, kalıcı sil, Çöp'ü boşalt, kaydedilmemişleri temizle onayı
 - [x] Kütüphanede önizleme (`Space`), Eylemler paleti (kapsam, görünüm, sıralama, klasör komutları), sağ tık menüsü; askılardan `L`, tepsi ve genel kısayol ile açılır
 - [x] Alan adı ve çoklu etiket filtresi arayüzü (Faz 7 filtre paneli)
@@ -91,3 +91,8 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] Kütüphane filtre paneli açıkken araç çubuğu yenilense de yerinde kalır; seçili tarih / seçenek çipi vurgu rengiyle görünür
 - [x] "Yeni bir şey kopyalanınca": her kopyada insin (varsayılan) / yalnızca görsellerde / inmesin; eski açık-kapalı ayarı bir kez taşınır
 - [x] Askıların sağ üstünde Kütüphane ve Ayarlar düğmeleri; Ayarlar'daki logo yüksek kaliteli ölçeklenir; Güncellemeler metinleri Türkçeleşti
+
+## 0.1.2 — Lisans
+- [x] Pegline © 2026 Enes Sarı, tüm hakları saklı (`LICENSE`, Hakkında, dosya özellikleri)
+- [x] Başka projeden kopyalanan test dosyaları kaldırıldı; aynı davranışlar kendi testleriyle (askı, Kütüphane klavyesi, kopyalama kuralları, geçmiş temizleme) denetleniyor
+- [x] Üçüncü taraf bildirimleri yalnızca uygulamada gerçekten kullanılan bileşenleri listeler

@@ -714,7 +714,8 @@ internal sealed class SettingsWindow : Window
         Card(null, null,
             Row(Label(Loc.T("Application"), null), Value("Pegline")),
             Row(Label(Loc.T("Version"), null), Value(VersionText())),
-            Caption(Loc.T("Image, text and link shelves, with a private local library."), new Thickness(0, 8, 0, 8)));
+            Caption(Loc.T("Image, text and link shelves, with a private local library."), new Thickness(0, 8, 0, 2)),
+            Caption("© 2026 Enes Sarı. " + Loc.T("All rights reserved."), new Thickness(0, 2, 0, 8)));
         Card(null, null, Buttons(
             ("Check for updates…", () => Choose("updates"), false, "checkUpdates"),
             ("Open releases page", OpenReleases, false, "releases"),

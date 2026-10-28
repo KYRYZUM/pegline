@@ -11,9 +11,10 @@
     <AssemblyName>Pegline</AssemblyName>
     <RootNamespace>Pegline.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Product>Pegline</Product>
     <Company>Pegline</Company>
+    <Copyright>Copyright (c) 2026 Enes Sarı</Copyright>
     <ApplicationIcon>..\..\assets\brand\pegline.ico</ApplicationIcon>
     <!-- Program.Main runs Velopack's install/update hooks before WPF starts. -->
     <StartupObject>Pegline.App.Program</StartupObject>
