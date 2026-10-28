@@ -328,11 +328,13 @@ public partial class App : Application
             switch (content.Kind)
             {
                 case ClipKind.Link when settings.CaptureLinks:
-                    _links?.Request([_store.InsertLink(content.Text).Id]);
+                    var link = _store.InsertLink(content.Text);
+                    _links?.Request([link.Id]);
+                    Hung(link);
                     break;
                 case ClipKind.Link when settings.CaptureText:
                 case ClipKind.Text when settings.CaptureText:
-                    _store.InsertText(content.Text);
+                    Hung(_store.InsertText(content.Text));
                     break;
                 case ClipKind.Image when settings.CaptureImages && content.Png is not null:
                     var image = _store.InsertImage(content.Png);
@@ -434,16 +436,32 @@ public partial class App : Application
         if (_settings is null || _shelves is null) return;
         var settings = _settings.Current;
         if (settings.IndexImages) _ocr?.Enqueue(image);
-        if (settings.Sounds) Sounds.Play(Sound.Hang);
         if (crop)
         {
+            if (settings.Sounds) Sounds.Play(Sound.Hang);
             _shelves.ShowCaptured(image.Id, crop);
             return;
         }
-        // The new image shows itself for a moment without taking the keyboard. Over a full-screen app (a game or a
-        // video) it waits quietly on its shelf unless the user allowed the shelves there.
-        if (settings.OpenAfterScreenshot && (settings.ShowOverFullScreen || !Win32.IsFullscreenForeground()))
-            _shelves.ShowPassive(image.Id, TimeSpan.FromSeconds(2.5));
+        Hung(image);
+    }
+
+    /// <summary>
+    /// A new copy hung on its shelf. It shows itself for a moment without taking the keyboard when the setting asks
+    /// for it; over a full-screen app (a game or a video) it waits quietly unless the user allowed the shelves there.
+    /// </summary>
+    private void Hung(ClipItem item)
+    {
+        if (_settings is null || _shelves is null) return;
+        var settings = _settings.Current;
+        if (settings.Sounds) Sounds.Play(Sound.Hang);
+        var peek = settings.RevealNewItems switch
+        {
+            NewItemReveal.Everything => true,
+            NewItemReveal.Images => item.Kind == ItemKind.Image,
+            _ => false,
+        };
+        if (peek && (settings.ShowOverFullScreen || !Win32.IsFullscreenForeground()))
+            _shelves.ShowPassive(item.Id, TimeSpan.FromSeconds(2.5));
     }
 
     private static string RetentionKey(AppSettings settings) =>

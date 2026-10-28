@@ -9,11 +9,13 @@ namespace Pegline.Core.Shelves;
 public sealed class ShelfNavigator
 {
     public static readonly ItemKind[] Order = [ItemKind.Image, ItemKind.Text, ItemKind.Link];
-    public const int MaxPageSize = 9;
+    /// <summary>Cards per page until the view measures the screen; numbers 1–9 label the first nine on a page.</summary>
+    public const int DefaultPageSize = 9;
+    public const int MaxPageSize = 64;
 
     private readonly Dictionary<ItemKind, List<ClipItem>> _rows = Order.ToDictionary(k => k, _ => new List<ClipItem>());
     private readonly Dictionary<ItemKind, int> _offsets = Order.ToDictionary(k => k, _ => 0);
-    private readonly Dictionary<ItemKind, int> _pageSizes = Order.ToDictionary(k => k, _ => MaxPageSize);
+    private readonly Dictionary<ItemKind, int> _pageSizes = Order.ToDictionary(k => k, _ => DefaultPageSize);
     private readonly List<Guid> _selection = [];
     private readonly HashSet<ItemKind> _pinnedOnly = [];
     private List<ItemKind> _visible = [.. Order];
@@ -146,7 +148,7 @@ public sealed class ShelfNavigator
     {
         var row = _rows[ActiveKind];
         var index = _offsets[ActiveKind] + number - 1;
-        if (number < 1 || number > _pageSizes[ActiveKind] || index >= row.Count) return;
+        if (number < 1 || number > Math.Min(9, _pageSizes[ActiveKind]) || index >= row.Count) return;
         Focus(row[index], resetSelection: true);
     }
 
@@ -183,16 +185,14 @@ public sealed class ShelfNavigator
         _anchor ??= Focused;
     }
 
-    /// <summary>Ctrl+Click: adds or removes one card from the batch.</summary>
+    /// <summary>Ctrl+Click: adds or removes one card from the batch, which may span shelves (an image and a link).</summary>
     public void ToggleSelection(Guid id)
     {
         var (kind, _) = Locate(id);
         if (kind is null) return;
-        if (kind != ActiveKind)
-        {
-            ActiveKind = kind.Value;
-            _selection.Clear();
-        }
+        // The card focused before the first Ctrl+Click belongs to the batch it starts.
+        if (_selection.Count == 0 && Focused is { } focused && focused != id) _selection.Add(focused);
+        ActiveKind = kind.Value;
         if (!_selection.Remove(id)) _selection.Add(id);
         Focused = id;
         _anchor = id;
@@ -228,11 +228,10 @@ public sealed class ShelfNavigator
         Focus(_rows[kind.Value][index], resetSelection: true);
     }
 
-    /// <summary>The selected records in shelf order.</summary>
+    /// <summary>The selected records in shelf order (images, then texts, then links).</summary>
     public IReadOnlyList<ClipItem> SelectedItems()
     {
-        var row = _rows[ActiveKind];
-        var chosen = row.Where(i => _selection.Contains(i.Id)).ToList();
+        var chosen = Order.SelectMany(k => _rows[k]).Where(i => _selection.Contains(i.Id)).ToList();
         if (chosen.Count == 0 && FocusedItem is { } focused) chosen.Add(focused);
         return chosen;
     }
@@ -321,7 +320,7 @@ public sealed class ShelfNavigator
         Rebuild();
         if (!IsOpen || !preserveFocus) return;
 
-        var selectionSurvivors = _selection.Where(id => _rows[kind].Any(i => i.Id == id)).ToList();
+        var selectionSurvivors = _selection.Where(id => Locate(id).Kind is not null).ToList();
         if (focus is { } id && _rows[kind].Any(i => i.Id == id))
         {
             _selection.Clear();

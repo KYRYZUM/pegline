@@ -47,6 +47,7 @@ public partial class ShelfWindow : Window
     private DateTime? _awaySince;
     private DispatcherTimer? _passiveTimer;
     private bool _snapshot = false; // set only by the debug snapshot mode
+    private bool _settling;
 
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
@@ -262,10 +263,11 @@ public partial class ShelfWindow : Window
         _nav.SetItems(_store.Items);
         _nav.Open();
         Width = width;
+        Height = 1600;
         Show();
         Render();
-        Panel.Measure(new Size(width, double.PositiveInfinity));
-        Height = Panel.DesiredSize.Height + 2;
+        UpdateLayout();
+        Height = Panel.ActualHeight + 2;
     }
 #endif
 
@@ -297,6 +299,21 @@ public partial class ShelfWindow : Window
         var handle = new WindowInteropHelper(this).Handle;
         for (var pass = 0; pass < 2; pass++) // a second pass settles a DPI change between monitors
             Win32.SetWindowPos(handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(height * _scale), Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
+        // A row shown again grows the window before WPF has laid it out; size it once more from the finished layout,
+        // so the new row is never left cut off below the old window edge.
+        if (!_settling)
+        {
+            _settling = true;
+            Dispatcher.BeginInvoke(() =>
+            {
+                _settling = false;
+                if (!IsVisible || _hiding) return;
+                UpdateLayout();
+                var settled = Math.Ceiling(Panel.ActualHeight + 2);
+                Win32.SetWindowPos(new WindowInteropHelper(this).Handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(settled * _scale), Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
+                InvalidateVisual();
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     // ----- Rendering -----
@@ -395,6 +412,13 @@ public partial class ShelfWindow : Window
         {
             _selectMode = !_selectMode;
             Render();
+        }));
+        Toolbar.Children.Add(Separator());
+        Toolbar.Children.Add(ToolButton("", Loc.T("Open Library") + "  " + _keymap.Primary("library"), false, () => OpenLibrary(null, null, search: false)));
+        Toolbar.Children.Add(ToolButton("", Loc.T("Settings") + "  Ctrl+,", false, () =>
+        {
+            HideShelves(restoreFocus: false);
+            OpenSettings?.Invoke("general");
         }));
         Toolbar.Children.Add(ToolButton("", Loc.T("Hide shelves") + "  Esc", false, () => HideShelves(restoreFocus: true)));
     }

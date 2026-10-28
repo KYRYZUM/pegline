@@ -136,4 +136,44 @@ public class ShelfNavigatorTests
         Assert.Equal(items[2].Id, nav.Focused);
         Assert.Single(nav.Row(ItemKind.Image));
     }
+
+    [Fact]
+    public void CtrlClickBatchesSpanShelvesAndSkipCards()
+    {
+        var items = Items(5, 2, 2);
+        var nav = new ShelfNavigator();
+        nav.SetItems(items);
+        nav.Open();
+        nav.Select(items[0].Id);
+        nav.ToggleSelection(items[4].Id);
+        nav.ToggleSelection(items[7].Id);
+        Assert.Equal([items[0].Id, items[4].Id, items[7].Id], nav.SelectedItems().Select(i => i.Id));
+        Assert.Equal(ItemKind.Link, nav.ActiveKind);
+
+        // Hiding the Links shelf drops its card from the batch and keeps the images.
+        nav.ToggleSelection(items[0].Id);
+        nav.ToggleKind(ItemKind.Link);
+        Assert.Equal([items[4].Id], nav.SelectedItems().Select(i => i.Id));
+
+        // Moving with the keyboard starts over with one card.
+        nav.Select(items[1].Id);
+        nav.Next();
+        Assert.Equal([items[2].Id], nav.SelectedItems().Select(i => i.Id));
+    }
+
+    [Fact]
+    public void AWideScreenShowsMoreThanNineCardsButNumbersStopAtNine()
+    {
+        var items = Items(30, 0, 0);
+        var nav = new ShelfNavigator();
+        nav.SetItems(items);
+        nav.SetPageSize(ItemKind.Image, 13);
+        nav.Open();
+        Assert.Equal(13, nav.PageSize(ItemKind.Image));
+        nav.SelectNumber(9);
+        Assert.Equal(items[8].Id, nav.Focused);
+        nav.NextPage();
+        Assert.Equal(13, nav.Offset(ItemKind.Image));
+        Assert.Equal(items[21].Id, nav.Focused);
+    }
 }

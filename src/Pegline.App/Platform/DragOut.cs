@@ -9,7 +9,9 @@ namespace Pegline.App.Platform;
 
 /// <summary>
 /// Drag and drop out of Pegline. Images travel as real files named after the record; text and links travel as
-/// text (and a URL for links), or as .txt / .url files while Alt is held. The drop target always gets a copy.
+/// text (and a URL for links), or as .txt / .url files when Ctrl (or Alt) is held as the drag starts. Ctrl is the
+/// dependable one: Explorer reads a held Alt as "create a shortcut" and refuses a drop that only offers a copy, while
+/// a held Ctrl asks Explorer for exactly the copy offered. The drop target always gets a copy.
 /// The record ids ride along so the Library sidebar can accept a drop onto a folder.
 /// </summary>
 internal static class DragOut
@@ -25,7 +27,7 @@ internal static class DragOut
     public static bool Start(DependencyObject source, IReadOnlyList<ClipItem> items, ItemFiles files)
     {
         if (items.Count == 0) return false;
-        var asFiles = (Keyboard.Modifiers & ModifierKeys.Alt) != 0;
+        var asFiles = (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Alt)) != 0;
         var data = new DataObject();
         var paths = new StringCollection();
         foreach (var item in items)

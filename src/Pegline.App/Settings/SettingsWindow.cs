@@ -312,8 +312,10 @@ internal sealed class SettingsWindow : Window
 
         Card(Loc.T("Bring the shelves down"), Loc.T("Full-screen apps are games, videos and presentations. Your shortcut always works, even there."),
             Check(Loc.T("When the pointer rests at the top edge of the screen"), current.PointerReveal, value => _settings.Update(s => s.PointerReveal = value), "pointerReveal"),
-            Check(Loc.T("When something new hangs"), current.OpenAfterScreenshot, value => _settings.Update(s => s.OpenAfterScreenshot = value), "peek"),
-            Check(Loc.T("Over full-screen apps"), current.ShowOverFullScreen, value => _settings.Update(s => s.ShowOverFullScreen = value), "fullScreen"));
+            Check(Loc.T("Over full-screen apps"), current.ShowOverFullScreen, value => _settings.Update(s => s.ShowOverFullScreen = value), "fullScreen"),
+            Choice(Loc.T("When something new is copied"),
+                [(NewItemReveal.Everything, Loc.T("Bring them down for every copy")), (NewItemReveal.Images, Loc.T("Bring them down for images only")), (NewItemReveal.Never, Loc.T("Don't bring them down, just hang it"))],
+                current.RevealNewItems, value => _settings.Update(s => s.RevealNewItems = value), "peek"));
 
         Card(null, LoginItem.IsAvailable ? null : Loc.T("Starting at sign-in is available in the installed app."),
             Check(Loc.T("Sounds"), current.Sounds, value =>
@@ -920,7 +922,13 @@ internal sealed class SettingsWindow : Window
         return image;
     });
 
-    private static Image Mark(double size) => new() { Source = MarkImage.Value, Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Left };
+    /// <summary>The logo, scaled down from 256 px with high-quality filtering so its edges stay smooth.</summary>
+    private static Image Mark(double size)
+    {
+        var image = new Image { Source = MarkImage.Value, Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Left, SnapsToDevicePixels = true };
+        RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+        return image;
+    }
 
     private static void AutomationName(DependencyObject element, string name) =>
         System.Windows.Automation.AutomationProperties.SetName(element, name);

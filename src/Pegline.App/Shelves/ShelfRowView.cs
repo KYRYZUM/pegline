@@ -6,6 +6,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using Pegline.App.Localization;
 using Pegline.Core.Models;
+using Pegline.Core.Shelves;
 using Pegline.Core.Storage;
 
 namespace Pegline.App.Shelves;
@@ -105,9 +106,17 @@ internal sealed class ShelfRowView : Grid
         _ => "",
     };
 
-    /// <summary>Card positions in this row, used by the window to compute how many fit.</summary>
+    /// <summary>How many cards of the chosen size fit across the screen; the window pages by this count.</summary>
     public static int Fit(double width, CardMetrics metrics) =>
-        Math.Max(1, (int)Math.Floor((width - SidePadding * 2 + metrics.Gap) / (metrics.Width + metrics.Gap)));
+        Math.Clamp((int)Math.Floor((width - SidePadding * 2 + metrics.Gap) / (metrics.Width + metrics.Gap)), 1, ShelfNavigator.MaxPageSize);
+
+    /// <summary>Distance between card left edges: a full page spans the rope from end to end, and every row shares the columns.</summary>
+    private static double Pitch(double width, CardMetrics metrics)
+    {
+        var fit = Fit(width, metrics);
+        if (fit < 2) return metrics.Width + metrics.Gap;
+        return metrics.Width + Math.Max(metrics.Gap, (width - SidePadding * 2 - fit * metrics.Width) / (fit - 1));
+    }
 
     public void Render(RowState state)
     {
@@ -141,10 +150,11 @@ internal sealed class ShelfRowView : Grid
             return;
         }
 
+        var pitch = Pitch(width, Metrics);
         for (var i = 0; i < state.Page.Count; i++)
         {
             var item = state.Page[i];
-            var left = SidePadding + i * (Metrics.Width + Metrics.Gap);
+            var left = SidePadding + i * pitch;
             var center = left + Metrics.Width / 2;
             var t = Math.Clamp(center / width, 0, 1);
             var ropeY = RopeTop + 4 * Sag * t * (1 - t);
@@ -286,6 +296,15 @@ internal sealed class ShelfRowView : Grid
             Cursor = Cursors.Hand,
             Child = content,
             SnapsToDevicePixels = true,
+        };
+        // The shadow is a separate plate behind the card: an effect on the card itself would turn its text into a bitmap.
+        var shadow = new Border
+        {
+            Width = metrics.Width,
+            Height = metrics.Height,
+            CornerRadius = new CornerRadius(10),
+            Background = Palette.CardFor(item.Kind),
+            IsHitTestVisible = false,
             Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
                 BlurRadius = focused ? 18 : 10,
@@ -293,8 +312,8 @@ internal sealed class ShelfRowView : Grid
                 Opacity = focused ? 0.55 : 0.4,
                 Color = focused ? Color.FromRgb(0x1D, 0x4E, 0xD8) : Colors.Black,
             },
-            RenderTransformOrigin = new Point(0.5, 0),
         };
+        var hanger = new Grid { RenderTransformOrigin = new Point(0.5, 0), Children = { shadow, card } };
 
         switch (item.Kind)
         {
@@ -329,10 +348,11 @@ internal sealed class ShelfRowView : Grid
                 Child = new TextBlock { Text = number.ToString(), FontSize = 10.5, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 1) },
             });
 
-        // Cards hang slightly askew, like real laundry; hovering straightens them.
-        var angle = ((item.Id.GetHashCode() & 0x7fffffff) % 7 - 3) * 0.55;
+        // Image cards hang slightly askew, like real laundry; hovering straightens them. Text and link cards hang
+        // straight, because rotated text loses its crisp, pixel-aligned rendering.
+        var angle = item.Kind == ItemKind.Image ? ((item.Id.GetHashCode() & 0x7fffffff) % 7 - 3) * 0.55 : 0;
         var rotate = new RotateTransform(focused ? 0 : angle);
-        card.RenderTransform = rotate;
+        hanger.RenderTransform = rotate;
         card.MouseEnter += (_, _) => rotate.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(160)) { EasingFunction = new QuadraticEase() });
         card.MouseLeave += (_, _) => rotate.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(focused ? 0 : angle, TimeSpan.FromMilliseconds(260)) { EasingFunction = new ElasticEase { Oscillations = 1, Springiness = 4 } });
         card.MouseLeftButtonUp += (_, e) =>
@@ -354,8 +374,7 @@ internal sealed class ShelfRowView : Grid
             _pressed = null;
             CardDragged?.Invoke(this, item);
         };
-        card.Clip = null;
-        return card;
+        return hanger;
     }
 
     private void BuildImage(Grid content, ClipItem item)

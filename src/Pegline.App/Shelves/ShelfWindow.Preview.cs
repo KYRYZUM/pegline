@@ -397,7 +397,11 @@ public partial class ShelfWindow : IPreviewHost
         var text = await _ocr.TextOfAsync(target.Id);
         if (text is null) ShowToast(Loc.T("Text could not be recognized"));
         else if (text.Trim().Length == 0) ShowToast(Loc.T("No text found"));
-        else if (_writer.CopyText(text)) ShowToast(Loc.T("Image text copied"));
+        else if (_writer.CopyText(text))
+        {
+            if (_settings.Current.CaptureText) _store.InsertText(text.Trim());
+            ShowToast(Loc.T("Image text copied"));
+        }
         else ShowToast(Loc.T("Clipboard could not be written."));
     }
 

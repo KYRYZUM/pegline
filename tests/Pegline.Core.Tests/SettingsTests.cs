@@ -35,4 +35,19 @@ public sealed class SettingsTests : IDisposable
         Assert.False(new SettingsStore(_directory).Current.CaptureImages);
         Assert.True(new SettingsStore(_directory).Current.CaptureText);
     }
+
+    [Theory]
+    [InlineData(true, Pegline.Core.Models.NewItemReveal.Everything)]
+    [InlineData(false, Pegline.Core.Models.NewItemReveal.Never)]
+    public void TheVersionOnePeekSwitchChoosesTheRevealSetting(bool peek, Pegline.Core.Models.NewItemReveal expected)
+    {
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(Path.Combine(_directory, "settings.json"), "{ \"Version\": 1, \"OpenAfterScreenshot\": " + (peek ? "true" : "false") + " }");
+        Assert.Equal(expected, new SettingsStore(_directory).Current.RevealNewItems);
+
+        // Once upgraded, the user's own choice is kept.
+        var store = new SettingsStore(_directory);
+        store.Update(s => s.RevealNewItems = Pegline.Core.Models.NewItemReveal.Images);
+        Assert.Equal(Pegline.Core.Models.NewItemReveal.Images, new SettingsStore(_directory).Current.RevealNewItems);
+    }
 }

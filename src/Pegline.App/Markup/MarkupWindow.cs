@@ -434,36 +434,127 @@ internal sealed class MarkupWindow : HostedWindow
 
     private Border Separator() => new() { Width = 1, Height = 20, Margin = new Thickness(8, 0, 8, 0), Background = _palette.PanelBorder, VerticalAlignment = VerticalAlignment.Center };
 
+    private Popup? _styleMenu;
+    private DateTime _styleMenuClosedAt;
+
+    /// <summary>
+    /// Stroke width, fill and text size in one small panel under the toolbar. It stays open while choices are made
+    /// and closes on a click elsewhere or Esc.
+    /// </summary>
     private void ShowStyleMenu()
     {
         CommitText();
-        var menu = new ContextMenu { PlacementTarget = _editTools, Placement = PlacementMode.Bottom };
-        var marker = _editor.Tool == MarkupTool.Marker || _editor.Selected?.Tool == MarkupTool.Marker;
-        var widths = marker ? MarkupStyle.MarkerWidths : MarkupStyle.Widths;
-        string[] widthNames = ["Thin", "Medium", "Thick", "Heavy"];
-        var width = new MenuItem { Header = Loc.T("Stroke width") };
-        for (var i = 0; i < widths.Length; i++)
+        // A click on the style button while the panel is open closes it (the click outside already did); it does not reopen.
+        if (_styleMenu is { IsOpen: true } || DateTime.UtcNow - _styleMenuClosedAt < TimeSpan.FromMilliseconds(300))
         {
-            var value = widths[i];
-            var entry = new MenuItem { Header = Loc.T(widthNames[i]), IsCheckable = true, IsChecked = Math.Abs(_editor.LineWidth - value) < 1e-9 };
-            entry.Click += (_, _) => _editor.ApplyStyle(width: value);
-            width.Items.Add(entry);
+            if (_styleMenu is not null) _styleMenu.IsOpen = false;
+            return;
         }
-        menu.Items.Add(width);
-        var fill = new MenuItem { Header = Loc.T("Fill shape"), IsCheckable = true, IsChecked = _editor.Filled };
-        fill.Click += (_, _) => _editor.ApplyStyle(fill: !_editor.Filled);
-        menu.Items.Add(fill);
-        string[] sizeNames = ["Small", "Medium", "Large", "Very large"];
-        var font = new MenuItem { Header = Loc.T("Annotation text size") };
-        for (var i = 0; i < MarkupStyle.FontSizes.Length; i++)
+        var content = new StackPanel { Width = 260 };
+        _styleMenu = new Popup
         {
-            var value = MarkupStyle.FontSizes[i];
-            var entry = new MenuItem { Header = Loc.T(sizeNames[i]), IsCheckable = true, IsChecked = Math.Abs(_editor.FontSize - value) < 1e-9 };
-            entry.Click += (_, _) => _editor.ApplyStyle(fontSize: value);
-            font.Items.Add(entry);
+            PlacementTarget = _editTools,
+            Placement = PlacementMode.Bottom,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            Child = new Border
+            {
+                Background = _palette.Panel,
+                BorderBrush = _palette.PanelBorder,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(14, 10, 14, 12),
+                Margin = new Thickness(0, 6, 0, 0),
+                Child = content,
+                Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 4, Opacity = 0.35 },
+            },
+        };
+        var menu = _styleMenu;
+        menu.KeyDown += (_, e) =>
+        {
+            if (e.Key != Key.Escape) return;
+            menu.IsOpen = false;
+            e.Handled = true;
+        };
+        menu.Closed += (_, _) =>
+        {
+            _styleMenuClosedAt = DateTime.UtcNow;
+            Keyboard.Focus(this);
+        };
+
+        void Render()
+        {
+            content.Children.Clear();
+            var marker = _editor.Tool == MarkupTool.Marker || _editor.Selected?.Tool == MarkupTool.Marker;
+            var widths = marker ? MarkupStyle.MarkerWidths : MarkupStyle.Widths;
+            string[] widthNames = ["Thin", "Medium", "Thick", "Heavy"];
+            Section(Loc.T("Stroke width"));
+            var widthRow = new WrapPanel();
+            for (var i = 0; i < widths.Length; i++)
+            {
+                var value = widths[i];
+                widthRow.Children.Add(StyleChip(Loc.T(widthNames[i]), Math.Abs(_editor.LineWidth - value) < 1e-9, () => _editor.ApplyStyle(width: value)));
+            }
+            content.Children.Add(widthRow);
+            Section(Loc.T("Fill shape"));
+            var fillRow = new WrapPanel();
+            fillRow.Children.Add(StyleChip(Loc.T("Off"), !_editor.Filled, () => _editor.ApplyStyle(fill: false)));
+            fillRow.Children.Add(StyleChip(Loc.T("On"), _editor.Filled, () => _editor.ApplyStyle(fill: true)));
+            content.Children.Add(fillRow);
+            string[] sizeNames = ["Small", "Medium", "Large", "Very large"];
+            Section(Loc.T("Annotation text size"));
+            var sizeRow = new WrapPanel();
+            for (var i = 0; i < MarkupStyle.FontSizes.Length; i++)
+            {
+                var value = MarkupStyle.FontSizes[i];
+                sizeRow.Children.Add(StyleChip(Loc.T(sizeNames[i]), Math.Abs(_editor.FontSize - value) < 1e-9, () => _editor.ApplyStyle(fontSize: value)));
+            }
+            content.Children.Add(sizeRow);
         }
-        menu.Items.Add(font);
-        menu.IsOpen = true;
+
+        void Section(string title) => content.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = _palette.Muted,
+            Margin = new Thickness(0, content.Children.Count == 0 ? 0 : 10, 0, 6),
+        });
+
+        Border StyleChip(string label, bool active, Action choose)
+        {
+            var chip = new Border
+            {
+                Padding = new Thickness(10, 4, 10, 5),
+                Margin = new Thickness(0, 0, 6, 6),
+                CornerRadius = new CornerRadius(7),
+                Background = active ? _palette.Accent : _palette.Chip,
+                BorderBrush = active ? _palette.Accent : Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                Cursor = Cursors.Hand,
+                Child = new TextBlock { Text = label, FontSize = 12.5, FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal, Foreground = active ? Brushes.White : _palette.Foreground },
+            };
+            chip.MouseEnter += (_, _) => { if (!active) chip.BorderBrush = _palette.Accent; };
+            chip.MouseLeave += (_, _) => { if (!active) chip.BorderBrush = Brushes.Transparent; };
+            chip.MouseLeftButtonUp += (_, e) =>
+            {
+                choose();
+                Render();
+                e.Handled = true;
+            };
+            return chip;
+        }
+
+        Render();
+        // The toolbar button hands the keyboard back to the window after its click; open once that has happened,
+        // or the focus change would close the panel the moment it appears.
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (!IsOpen || _closing || !ReferenceEquals(menu, _styleMenu)) return;
+            menu.IsOpen = true;
+            content.Focusable = true;
+            content.Focus();
+        }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     // ----- Commands -----

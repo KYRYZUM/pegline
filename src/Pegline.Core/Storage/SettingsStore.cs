@@ -65,6 +65,9 @@ public sealed class SettingsStore
             settings.CaptureText = true;
             settings.CaptureImages = true;
         }
+        // Version 1 peeked at new images only, behind one switch; texts and links now peek too unless it was off.
+        if (settings.Version < 2)
+            settings.RevealNewItems = settings.OpenAfterScreenshot ? NewItemReveal.Everything : NewItemReveal.Never;
         settings.Version = AppSettings.CurrentVersion;
         return true;
     }

@@ -81,6 +81,13 @@ internal sealed class LibraryFilterPanel
         _content.Focus();
     }
 
+    /// <summary>The Library rebuilds its toolbar on every change; the open panel follows the new filter button instead of falling to the screen corner.</summary>
+    public void Reanchor(UIElement anchor)
+    {
+        if (!_popup.IsOpen || ReferenceEquals(_popup.PlacementTarget, anchor)) return;
+        _popup.PlacementTarget = anchor;
+    }
+
 #if DEBUG
     internal FrameworkElement DetachForSnapshot()
     {
@@ -243,12 +250,15 @@ internal sealed class LibraryFilterPanel
             Padding = new Thickness(10, 4, 10, 5),
             Margin = new Thickness(0, 0, 6, 6),
             CornerRadius = new CornerRadius(7),
-            Background = active ? _palette.ChipActive : _palette.Chip,
+            // The chosen chip is drawn in the accent color so it never looks like a merely hovered one.
+            Background = active ? _palette.Accent : _palette.Chip,
+            BorderBrush = active ? _palette.Accent : Brushes.Transparent,
+            BorderThickness = new Thickness(1),
             Cursor = Cursors.Hand,
-            Child = new TextBlock { Text = label, FontSize = 12.5, Foreground = _palette.Foreground },
+            Child = new TextBlock { Text = label, FontSize = 12.5, FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal, Foreground = active ? Brushes.White : _palette.Foreground },
         };
-        chip.MouseEnter += (_, _) => { if (!active) chip.Background = _palette.ChipActive; };
-        chip.MouseLeave += (_, _) => { if (!active) chip.Background = _palette.Chip; };
+        chip.MouseEnter += (_, _) => { if (!active) chip.BorderBrush = _palette.Accent; };
+        chip.MouseLeave += (_, _) => { if (!active) chip.BorderBrush = Brushes.Transparent; };
         chip.MouseLeftButtonUp += (_, e) =>
         {
             click();

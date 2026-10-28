@@ -496,6 +496,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         }));
         _filterButton = ToolButton(Glyphs.Filter, Loc.T("Filters"), LibraryFilterPanel.HasPanelFilters(_model.Query), () => RunMenu("filters"));
         _tools.Children.Add(_filterButton);
+        _filters.Reanchor(_filterButton);
         _tools.Children.Add(ToolButton("", Loc.T("Sort"), false, ShowSortMenu));
         _tools.Children.Add(ToolButton(_model.ListMode ? "" : "", Loc.T(_model.ListMode ? "Grid" : "List"), false, () => RunMenu(_model.ListMode ? "grid" : "list")));
         _tools.Children.Add(ToolButton("", Loc.T(_settings.Current.LibraryInspectorVisible ? "Hide details" : "Show details"), _settings.Current.LibraryInspectorVisible, () => RunMenu("toggleInspector")));
@@ -813,7 +814,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         var text = await _ocr.TextOfAsync(id);
         if (text is null) Notify(Loc.T("Text could not be recognized"));
         else if (text.Trim().Length == 0) Notify(Loc.T("No text found"));
-        else if (_writer.CopyText(text)) Notify(Loc.T("Image text copied"));
+        else if (_writer.CopyText(text))
+        {
+            if (_settings.Current.CaptureText) _store.InsertText(text.Trim());
+            Notify(Loc.T("Image text copied"));
+        }
         else Notify(Loc.T("Clipboard could not be written."));
     }
 

@@ -448,7 +448,7 @@ internal static class Turkish
         ["The new language appears after Pegline reopens. Open edits are saved first."] = "Yeni dil, Pegline yeniden açılınca görünür. Açık düzenlemeler önce kaydedilir.",
         ["The shelves use the new colors now; Library and previews follow when Pegline reopens."] = "Askılar yeni renkleri hemen kullanır; Kütüphane ve önizlemeler Pegline yeniden açılınca uyar.",
         ["These work from any app. Use Ctrl, Alt or Win together with a key."] = "Bunlar her uygulamadan çalışır. Bir tuşla birlikte Ctrl, Alt ya da Win kullan.",
-        ["This copy was built from source, so it does not update itself. The installer version updates from GitHub Releases."] = "Bu kopya kaynak koddan derlendiği için kendini güncellemez. Kurulum sürümü GitHub Releases'tan güncellenir.",
+        ["This copy was built from source, so it does not update itself. The installer version updates from GitHub Releases."] = "Bu kopya kaynak koddan derlendiği için kendini güncellemez. Kurulumla yüklenen sürüm, GitHub'daki sürümler sayfasından güncellenir.",
         ["Unsaved copies"] = "Kaydedilmemiş kopyalar",
         ["Unsaved copies expire to recoverable Trash. Saved items and original files are kept."] = "Kaydedilmemiş kopyaların süresi dolunca geri alınabilir Çöp Kutusu'na gider. Kaydedilen öğeler ve orijinal dosyalar korunur.",
         ["Use {0}"] = "{0} kullan",
@@ -502,7 +502,12 @@ internal static class Turkish
         ["Save token"] = "Jetonu kaydet",
         ["Disconnect GitHub"] = "GitHub bağlantısını kes",
         ["GitHub access"] = "GitHub erişimi",
-        ["Needed only while the releases are private: create a fine-grained token for this repository with Contents: Read-only. It is encrypted for your Windows account and never leaves this PC except to GitHub."] = "Yalnızca sürümler gizliyken gerekir: bu depo için Contents: Read-only izinli ayrıntılı (fine-grained) bir jeton oluştur. Windows hesabın için şifrelenir ve GitHub dışında hiçbir yere gönderilmez.",
+        ["Needed only while the releases are private: create a fine-grained token for this repository with Contents: Read-only. It is encrypted for your Windows account and never leaves this PC except to GitHub."] = "Yalnızca sürümler gizliyken gerekir: GitHub'da bu depo için yalnızca içerik okuma izni olan bir erişim jetonu oluştur (GitHub'da \"Fine-grained token\", izin: \"Contents: Read-only\"). Jeton Windows hesabın için şifrelenir ve GitHub dışında hiçbir yere gönderilmez.",
         ["Token saved"] = "Jeton kayıtlı",
+        ["On"] = "Açık",
+        ["When something new is copied"] = "Yeni bir şey kopyalanınca",
+        ["Bring them down for every copy"] = "Her kopyada insin",
+        ["Bring them down for images only"] = "Yalnızca görsellerde insin",
+        ["Don't bring them down, just hang it"] = "İnmesin, yalnızca askıya eklensin",
     };
 }

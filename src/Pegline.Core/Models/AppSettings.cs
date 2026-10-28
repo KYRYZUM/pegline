@@ -13,11 +13,19 @@ public enum CardSize
     Large,
 }
 
+/// <summary>Whether a new copy brings the shelves down for a moment (a peek), or only hangs on its shelf.</summary>
+public enum NewItemReveal
+{
+    Never,
+    Images,
+    Everything,
+}
+
 /// <summary>User preferences. Images, text and links are all captured by default.</summary>
 public sealed class AppSettings
 {
     /// <summary>Schema version of the saved file; older files are upgraded once on load.</summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; }
 
@@ -29,7 +37,10 @@ public sealed class AppSettings
     public bool CaptureLinks { get; set; } = true;
     public bool FetchLinkMetadata { get; set; } = true;
     public bool IndexImages { get; set; } = true;
+    /// <summary>Version 1's on/off peek (images only); read once to choose <see cref="RevealNewItems"/>.</summary>
     public bool OpenAfterScreenshot { get; set; } = true;
+
+    public NewItemReveal RevealNewItems { get; set; } = NewItemReveal.Everything;
     public bool CaptureScreenshots { get; set; } = true;
 
     /// <summary>Resting the pointer against the top edge of a screen brings the shelves down there.</summary>

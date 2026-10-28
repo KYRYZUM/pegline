@@ -10,7 +10,7 @@ Pegline; görselleri, metinleri ve linkleri ekranın üstünden kayarak inen ü�
 
 ## Durum
 
-`0.1.0`. Hangi özelliklerin tamamlandığı [ROADMAP.md](ROADMAP.md) dosyasında.
+`0.1.1`. Hangi özelliklerin tamamlandığı [ROADMAP.md](ROADMAP.md) dosyasında.
 
 ## Kurulum ve güncelleme
 
@@ -31,7 +31,7 @@ Kurulum dosyası henüz kod imzalı değil; Windows SmartScreen ilk açılışta
 - `Ctrl+K` Eylemler paleti: tüm komutlar, aranabilir, kısayollarıyla
 - Kütüphane (`L`, tepsi): ızgara / liste, Kütüphanem, Favoriler, Düzenlenmemiş, Son kopyalar, Çöp, klasörler, etiketler, arama, tür filtreleri, sıralama, otomatik kaydeden ayrıntı paneli, notlar, geri alınabilir Çöp
 - Düzenleme: `Shift+P` klasöre sabitle (son kullanılanlar üstte, `Ctrl+N` yeni klasör), `Alt+P` adlandır ve sabitle (çoklu seçimde sırayla), `Ctrl+Shift+T` etiket ekle / oluştur
-- `Ctrl+Shift+E` kopyaları dışa aktar (hiçbir dosyanın üzerine yazmaz), sürükle-bırak: görseller dosya olarak, metin/link metin olarak (`Alt` basılıysa .txt / .url dosyası); Kütüphanede öğeleri kenar çubuğundaki klasöre sürükleyerek ekleme
+- `Ctrl+Shift+E` kopyaları dışa aktar (hiçbir dosyanın üzerine yazmaz), sürükle-bırak: görseller dosya olarak, metin/link metin olarak (sürüklemeye `Ctrl` basılıyken başlanırsa .txt / .url dosyası); Kütüphanede öğeleri kenar çubuğundaki klasöre sürükleyerek ekleme
 - `Ctrl+Enter` yapıştırma yalnızca önceki uygulamadaki aynı alana yapılır; parola alanları ve değişmiş hedefler reddedilir (UI Automation, alanın içeriği okunmaz)
 - Görsel işaretleme (`M`) ve kırpma (`C`): kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin; renk / kalınlık / dolgu; orijinal dosya hiç değişmez, işaretler sonradan düzenlenebilir
 - Ekran görüntüsü (`Ctrl+Alt+A`), Windows Ekran görüntüleri klasörü ve en fazla 3 izlenen klasör; görsellerdeki yazı cihazda tanınır (Windows OCR), aranabilir ve `Ctrl+Shift+C` ile kopyalanır

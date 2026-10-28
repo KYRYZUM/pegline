@@ -78,4 +78,16 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] `v*` etiketiyle sürüm iş akışı (test, model hazırlama, delta, yayın); yerel `scripts/pack.ps1`
 - [x] Logo: uygulama / kurulum ikonu (koyu yuvarlak karo), şeffaf tepsi simgesi, Ayarlar ve kurulum ekranında logo
 - [ ] Kod imzalama sertifikası (şimdilik imzasız; SmartScreen uyarısı)
-- [ ] Canlı kabul: kurulum, güncelleme ve kaldırma elle denenecek
+- [~] Canlı kabul: kurulum ve kaldırma denendi (0.1.0); 0.1.0 → 0.1.1 güncellemesi denenecek
+
+## 0.1.1 — İlk deneme turundan düzeltmeler
+- [x] Askıdaki yazılar keskin: gölge kartın içeriğinden ayrı çizilir, metin ve link kartları dik asılır (yalnızca görseller eğik)
+- [x] Kartlar ekran genişliğine göre sığar (9 kart sınırı kalktı), kart boyutuna uyar ve ipe eşit aralıkla yayılır; satırlar aynı sütunları paylaşır
+- [x] Yeniden gösterilen satır yerleşim bittikten sonra pencereyi bir kez daha boyutlar (yarım kalan satır)
+- [x] `Ctrl`+tık ile ardışık olmayan ve farklı türden (görsel + link) kartlar birlikte seçilir
+- [x] Metin / link kartları `Ctrl` basılıyken sürüklenince Gezgin'e .txt / .url dosyası olarak iner (Gezgin `Alt`'ı "kısayol oluştur" sayıp reddediyordu)
+- [x] İşaretleme stil paneli: kalınlık, dolgu ve yazı boyutu tek panelde, açık kalır (eski menü odak değişiminde hemen kapanıyordu)
+- [x] Görseldeki yazıyı kopyala, metni Metinler askısına da asar
+- [x] Kütüphane filtre paneli açıkken araç çubuğu yenilense de yerinde kalır; seçili tarih / seçenek çipi vurgu rengiyle görünür
+- [x] "Yeni bir şey kopyalanınca": her kopyada insin (varsayılan) / yalnızca görsellerde / inmesin; eski açık-kapalı ayarı bir kez taşınır
+- [x] Askıların sağ üstünde Kütüphane ve Ayarlar düğmeleri; Ayarlar'daki logo yüksek kaliteli ölçeklenir; Güncellemeler metinleri Türkçeleşti

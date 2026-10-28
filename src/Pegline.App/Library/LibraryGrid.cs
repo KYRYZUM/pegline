@@ -42,6 +42,7 @@ internal sealed class LibraryGrid : Grid
     private bool _listMode;
     private Guid? _pressed;
     private Guid? _deferredClick;
+    private ModifierKeys _deferredModifiers;
     private Point _pressPoint;
 
     public LibraryGrid(LibraryStore store, ThumbnailCache thumbnails, ShelfPalette palette)
@@ -233,13 +234,18 @@ internal sealed class LibraryGrid : Grid
             _deferredClick = null;
             if (e.ClickCount == 2) ItemDoubleClicked?.Invoke(this, id);
             // A plain press on a multi-selection may start a drag of all of it; select just this one on release.
-            else if (Keyboard.Modifiers == ModifierKeys.None && _selected.Count > 1 && _selected.Contains(id)) _deferredClick = id;
+            // Ctrl on a selected item may start a drag as files; it leaves the selection only on release.
+            else if (_selected.Contains(id) && (Keyboard.Modifiers == ModifierKeys.Control || (Keyboard.Modifiers == ModifierKeys.None && _selected.Count > 1)))
+            {
+                _deferredClick = id;
+                _deferredModifiers = Keyboard.Modifiers;
+            }
             else ItemClicked?.Invoke(this, (id, Keyboard.Modifiers));
             e.Handled = true;
         };
         element.MouseLeftButtonUp += (_, _) =>
         {
-            if (_deferredClick == id) ItemClicked?.Invoke(this, (id, ModifierKeys.None));
+            if (_deferredClick == id) ItemClicked?.Invoke(this, (id, _deferredModifiers));
             _deferredClick = null;
             _pressed = null;
         };
