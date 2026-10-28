@@ -3,11 +3,13 @@ using System.Windows;
 using System.Windows.Threading;
 using Pegline.App.Library;
 using Pegline.App.Localization;
+using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Shelves;
 using Pegline.Core.Library;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
+using Pegline.Core.Transfer;
 
 namespace Pegline.App;
 
@@ -59,8 +61,11 @@ public partial class App : Application
 
         var writer = new ClipboardWriter(_store);
         var foreground = new ForegroundTracker();
-        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary);
-        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit);
+        var files = new ItemFiles(_store, Path.Combine(DataDirectory, "transfer"));
+        files.CleanDragCopies();
+        var organizer = new Organizer(_store, _settings, files);
+        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer);
+        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
@@ -95,6 +100,19 @@ public partial class App : Application
 
 #if DEBUG
         // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--snapshot", var picker, var image] && picker.StartsWith("picker-", StringComparison.Ordinal))
+        {
+            var palette = ShelfPalette.For(_settings.Current.Theme);
+            var ids = _store.Items.Where(i => !i.IsTrashed).Take(3).Select(i => i.Id).ToList();
+            Window? window = picker switch
+            {
+                "picker-folder" => organizer.PinToFolder(palette, ids, _ => { }),
+                "picker-tag" => organizer.AddTag(palette, ids, _ => { }),
+                _ => organizer.NameAndPin(palette, ids, _ => { }),
+            };
+            DevSnapshot.CaptureDetached(window, picker == "picker-name" ? new Size(556, 228) : new Size(556, 456), image, () => Shutdown());
+            return;
+        }
         if (e.Args is ["--snapshot", var target, var output])
         {
             DevSnapshot.Capture(target.StartsWith("library", StringComparison.Ordinal) ? _library : _shelves, target, output, () => Shutdown());

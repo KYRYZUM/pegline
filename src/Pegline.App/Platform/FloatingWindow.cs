@@ -34,6 +34,9 @@ internal abstract class FloatingWindow : Window
 
     public bool IsOpen { get; private set; }
 
+    /// <summary>False when the window closed because the user clicked another window; the parent should not reclaim focus.</summary>
+    public bool RestoreParentFocus { get; protected set; } = true;
+
     protected static Border Surface(ShelfPalette palette, double radius) => new()
     {
         Margin = new Thickness(ShadowMargin),
@@ -71,6 +74,15 @@ internal abstract class FloatingWindow : Window
         IsOpen = true;
         Activate();
         Win32.ForceForeground(Handle);
+    }
+
+    /// <summary>Centers the surface over <paramref name="parent"/> on the parent's monitor.</summary>
+    protected void ShowOver(Window parent, double width, double height)
+    {
+        var handle = new WindowInteropHelper(parent).Handle;
+        Win32.GetWindowRect(handle, out var anchor);
+        var (work, scale) = Win32.MonitorOf(handle);
+        ShowAt(work, scale, anchor, width, height);
     }
 
     protected override void OnClosed(EventArgs e)

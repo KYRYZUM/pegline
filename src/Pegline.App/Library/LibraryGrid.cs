@@ -36,6 +36,9 @@ internal sealed class LibraryGrid : Grid
     private IReadOnlySet<Guid> _selected = new HashSet<Guid>();
     private Guid? _focused;
     private bool _listMode;
+    private Guid? _pressed;
+    private Guid? _deferredClick;
+    private Point _pressPoint;
 
     public LibraryGrid(LibraryStore store, ThumbnailCache thumbnails, ShelfPalette palette)
     {
@@ -79,6 +82,9 @@ internal sealed class LibraryGrid : Grid
     public event EventHandler<Guid>? ItemDoubleClicked;
 
     public event EventHandler<Guid>? ItemContextRequested;
+
+    /// <summary>The pointer dragged an item past the system threshold; the handler runs the drag.</summary>
+    public event EventHandler<Guid>? ItemDragged;
 
     public void Show(IReadOnlyList<Guid> ids, IReadOnlySet<Guid> selected, Guid? focused, bool listMode, string emptyText)
     {
@@ -194,9 +200,27 @@ internal sealed class LibraryGrid : Grid
         element.MouseLeftButtonDown += (_, e) =>
         {
             Focus();
+            _pressed = id;
+            _pressPoint = e.GetPosition(this);
+            _deferredClick = null;
             if (e.ClickCount == 2) ItemDoubleClicked?.Invoke(this, id);
+            // A plain press on a multi-selection may start a drag of all of it; select just this one on release.
+            else if (Keyboard.Modifiers == ModifierKeys.None && _selected.Count > 1 && _selected.Contains(id)) _deferredClick = id;
             else ItemClicked?.Invoke(this, (id, Keyboard.Modifiers));
             e.Handled = true;
+        };
+        element.MouseLeftButtonUp += (_, _) =>
+        {
+            if (_deferredClick == id) ItemClicked?.Invoke(this, (id, ModifierKeys.None));
+            _deferredClick = null;
+            _pressed = null;
+        };
+        element.MouseMove += (_, e) =>
+        {
+            if (_pressed != id || e.LeftButton != MouseButtonState.Pressed || !Platform.DragOut.Exceeded(_pressPoint, e.GetPosition(this))) return;
+            _pressed = null;
+            _deferredClick = null;
+            ItemDragged?.Invoke(this, id);
         };
         element.MouseRightButtonUp += (_, e) =>
         {

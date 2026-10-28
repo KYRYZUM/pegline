@@ -34,7 +34,8 @@ public sealed class LibraryStore : IDisposable
     public LibraryStore(string directory, Func<DateTimeOffset>? clock = null)
     {
         _clock = clock ?? (() => DateTimeOffset.Now);
-        Directory.CreateDirectory(directory);
+        System.IO.Directory.CreateDirectory(directory);
+        Directory = directory;
         Media = new MediaStore(Path.Combine(directory, "media"));
         _db = new SqliteConnection(new SqliteConnectionStringBuilder
         {
@@ -49,6 +50,9 @@ public sealed class LibraryStore : IDisposable
     }
 
     public MediaStore Media { get; }
+
+    /// <summary>The folder holding the database and media.</summary>
+    public string Directory { get; }
 
     /// <summary>Retention per kind in days; 0 keeps forever. Applied on capture and by <see cref="Expire"/>.</summary>
     public IReadOnlyDictionary<ItemKind, int> RetentionDays { get; set; } = new AppSettings().RetentionDays;
@@ -446,6 +450,7 @@ public sealed class LibraryStore : IDisposable
                 var parentFolder = _folders.FirstOrDefault(f => f.Id == parent) ?? throw new InvalidOperationException("Parent folder is unavailable.");
                 if (parentFolder.ParentId is not null) throw new InvalidOperationException("Only top-level folders can contain subfolders.");
             }
+            RequireUniqueFolderName(name, parentId, except: null);
             var folder = new Folder { Name = name, ParentId = parentId };
             Commit(tx => tx.AddFolder(folder));
             return folder;
@@ -459,8 +464,16 @@ public sealed class LibraryStore : IDisposable
         lock (_gate)
         {
             var folder = _folders.FirstOrDefault(f => f.Id == id) ?? throw new InvalidOperationException("Folder unavailable.");
+            RequireUniqueFolderName(name, folder.ParentId, except: id);
             Commit(tx => tx.TouchFolder(folder).Name = name);
         }
+    }
+
+    /// <summary>Sibling folders cannot share a name, ignoring case and accents.</summary>
+    private void RequireUniqueFolderName(string name, Guid? parentId, Guid? except)
+    {
+        if (_folders.Any(f => f.Id != except && f.ParentId == parentId && Fold(f.Name) == Fold(name)))
+            throw new InvalidOperationException("A folder with this name already exists.");
     }
 
     /// <summary>Removes a folder and its subfolders. Members keep a saved state so they are not expired.</summary>
@@ -797,8 +810,7 @@ public sealed class LibraryStore : IDisposable
 
     private static string Limit(string value, int max) => value.Length > max ? value[..max] : value;
 
-    private static string Fold(string value) =>
-        new string([.. value.Normalize(System.Text.NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)]).ToLowerInvariant();
+    private static string Fold(string value) => Text.Folding.Fold(value);
 
     private sealed record TakeDownEntry(Guid Id, DateTimeOffset? TrashedAt, bool HiddenFromShelf);
 

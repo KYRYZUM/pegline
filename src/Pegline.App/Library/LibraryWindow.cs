@@ -11,6 +11,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Pegline.App.Actions;
 using Pegline.App.Localization;
+using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Preview;
 using Pegline.App.Shelves;
@@ -53,10 +54,13 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private bool _renderQueued;
     private PreviewWindow? _preview;
     private ActionPalette? _actions;
+    private OrganizerWindow? _picker;
+    private readonly Organizer _organizer;
     private bool _quitting;
 
-    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit)
+    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer)
     {
+        _organizer = organizer;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -116,6 +120,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             _model.Select(id);
             OpenPreview();
         };
+        _grid.ItemDragged += (_, id) => DragItems(id);
         _grid.ItemContextRequested += (_, id) =>
         {
             _model.Select(id, preservingSelection: true);
@@ -128,6 +133,18 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         _sidebar.RemoveFolderRequested += (_, folder) => RemoveFolder(folder);
         _sidebar.RenameTagRequested += (_, tag) => RenameTag(tag);
         _sidebar.RemoveTagRequested += (_, tag) => RemoveTag(tag);
+        _sidebar.ItemsDroppedOnFolder += (_, drop) =>
+        {
+            try
+            {
+                _store.AddToFolder(drop.Ids, drop.Folder.Id);
+                Notify(Loc.F("Added to “{0}”", drop.Folder.Name));
+            }
+            catch (InvalidOperationException ex)
+            {
+                Notify(Loc.T(ex.Message));
+            }
+        };
         _inspector.ActionRequested += (_, action) => OnInspectorAction(action);
         _inspector.Notice += (_, text) => Notify(text);
 
@@ -191,6 +208,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     {
         _inspector.Flush();
         _actions?.Close();
+        _picker?.Close();
         _preview?.ForceClose();
         Hide();
     }
@@ -588,18 +606,73 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "close":
                 HideLibrary();
                 break;
-            default: // folder, name, tag, export, copyOCR, markup, crop
+            case "folder" or "name" or "tag" or "export":
+                Organize(action, ids);
+                break;
+            default: // copyOCR, markup, crop
                 Notify(Loc.T("Coming soon"));
                 break;
         }
+    }
+
+    /// <summary>Pin to folder, name and pin, add tag or export for the captured ids.</summary>
+    private void Organize(string action, IReadOnlyList<Guid> ids)
+    {
+        if (_picker is not null || !_inspector.Flush()) return;
+        var items = ids.Select(_store.Find).OfType<ClipItem>().Where(i => !i.IsTrashed).ToList();
+        if (items.Count == 0)
+        {
+            Notify(Loc.T("Select an item first"));
+            return;
+        }
+        Window parent = _preview is { IsOpen: true, IsActive: true } preview ? preview : this;
+        if (action == "export")
+        {
+            _organizer.Export(parent, items, Notify);
+            return;
+        }
+        var captured = items.Select(i => i.Id).ToList();
+        OrganizerWindow? picker;
+        if (action == "name")
+        {
+            var naming = _organizer.NameAndPin(_palette, captured, Notify);
+            if (naming is not null)
+                naming.Advanced += (_, next) =>
+                {
+                    if (next is { } id) _model.Reveal(id);
+                    else Notify(Loc.T("Pinned"));
+                };
+            picker = naming;
+        }
+        else picker = action == "folder" ? _organizer.PinToFolder(_palette, captured, Notify) : _organizer.AddTag(_palette, captured, Notify);
+        if (picker is null) return;
+        picker.Owner = parent;
+        picker.Closed += (_, _) =>
+        {
+            _picker = null;
+            if (_quitting || !picker.RestoreParentFocus || !parent.IsVisible) return;
+            parent.Activate();
+            if (parent == this) FocusGrid();
+        };
+        _picker = picker;
+        picker.Present(parent);
+    }
+
+    /// <summary>Drags the item, or the whole selection when the item is part of it.</summary>
+    private void DragItems(Guid id)
+    {
+        if (!_inspector.Flush()) return;
+        var ids = _model.Selected.Contains(id) ? _model.ActionIds : [id];
+        DragOut.Start(_grid, [.. ids.Select(_store.Find).OfType<ClipItem>().Where(i => !i.IsTrashed)], _organizer.Files);
     }
 
     private async Task PasteAsync(IReadOnlyList<ClipItem> items)
     {
         if (items.Count == 0 || !_writer.Copy(items)) return;
         HideLibrary();
-        if (!await _foreground.PasteIntoPreviousAsync())
-            MessageBox.Show(Loc.T("Paste failed: the previous app is no longer available."), "Pegline");
+        var verdict = await _foreground.PasteIntoPreviousAsync();
+        if (verdict != Pegline.Core.Transfer.PasteVerdict.Allowed)
+            System.Windows.MessageBox.Show(Loc.T(Pegline.Core.Transfer.PastePolicy.Message(verdict)), "Pegline");
     }
 
     private void OpenItem(ClipItem item)
@@ -657,6 +730,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         menu.Items.Add(new Separator());
         Add(Loc.T(items.All(i => i.Pinned) ? "Unpin" : "Pin"), () => _model.Perform("pin"));
         if (items.Any(i => !i.IsSaved)) Add(Loc.T("Save to library"), () => RunMenu("retain"));
+        var live = items.All(i => !i.IsTrashed);
+        Add(Loc.T("Pin to folder…"), () => _model.Perform("folder"), live);
+        Add(Loc.T("Name and pin…"), () => _model.Perform("name"), live);
+        Add(Loc.T("Add tag…"), () => _model.Perform("tag"), live);
+        Add(Loc.T("Export copies…"), () => _model.Perform("export"), live);
         var folders = _store.Folders;
         if (folders.Count > 0)
         {
@@ -806,6 +884,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
+        "folder", "name", "tag", "export",
         "menu.openScreenshotsFolder", "menu.resetZoom",
     ];
 
@@ -911,6 +990,8 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 _store.RemoveFromFolder(ids, Guid.Parse(id[ActionCatalog.UnassignFolderPrefix.Length..]));
             else if (id.StartsWith(ActionCatalog.RemoveTagPrefix, StringComparison.Ordinal))
                 _store.RemoveTag(ids, id[ActionCatalog.RemoveTagPrefix.Length..]);
+            else if (id is "folder" or "name" or "tag" or "export")
+                Organize(id, ids);
             else if (origin == ActionOrigin.LibraryPreview && _preview is { IsOpen: true } preview)
             {
                 switch (id)
@@ -936,7 +1017,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
         {
-            Notify(ex.Message);
+            Notify(Loc.T(ex.Message));
         }
     }
 

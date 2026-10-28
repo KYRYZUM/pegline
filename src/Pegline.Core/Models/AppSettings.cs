@@ -60,6 +60,7 @@ public sealed class AppSettings
     public bool LibraryInspectorVisible { get; set; } = true;
     public bool LibrarySidebarVisible { get; set; } = true;
     public List<Guid> RecentPinFolderIds { get; set; } = [];
+    public string LastExportFolder { get; set; } = "";
 
     public const int MaxWatchFolders = 3;
     public static readonly int[] RetentionChoices = [1, 3, 7, 15, 30, 0];

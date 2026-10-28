@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Pegline.App.Actions;
 using Pegline.App.Localization;
+using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Preview;
 using Pegline.Core.Actions;
@@ -21,6 +22,7 @@ public partial class ShelfWindow : IPreviewHost
 {
     private PreviewWindow? _preview;
     private ActionPalette? _actions;
+    private OrganizerWindow? _picker;
     private bool _closingChildren;
 
     private static readonly HashSet<string> ImplementedActions =
@@ -32,7 +34,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.toggleLine", "menu.quit", "menu.retain", "menu.takeDownLeft", "menu.takeDownRight", "menu.resetZoom",
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
-        "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash",
+        "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -189,7 +191,7 @@ public partial class ShelfWindow : IPreviewHost
     private void ScheduleFocusCheck() => Dispatcher.BeginInvoke(() =>
     {
         if (!IsShown || _holdOpen || PinnedForDebugging) return;
-        if (IsActive || _preview is { IsActive: true } || _actions is { IsActive: true }) return;
+        if (IsActive || _preview is { IsActive: true } || _actions is { IsActive: true } || _picker is { IsActive: true }) return;
         HideShelves(restoreFocus: false);
     }, DispatcherPriority.Background);
 
@@ -199,13 +201,92 @@ public partial class ShelfWindow : IPreviewHost
         try
         {
             _actions?.Close();
+            _picker?.Close();
             _preview?.ForceClose();
         }
         finally
         {
             _actions = null;
+            _picker = null;
             _preview = null;
             _closingChildren = false;
+        }
+    }
+
+    // ----- Organizing and drag -----
+
+    /// <summary>Pin to folder, name and pin, add tag or export for the selection (or the previewed item).</summary>
+    private void Organize(string action, ActionOrigin origin)
+    {
+        if (_picker is not null) return;
+        if (origin == ActionOrigin.Line && _preview is { IsOpen: true }) origin = ActionOrigin.ShelfPreview;
+        var targets = Targets(origin).Where(i => _store.Find(i.Id) is { IsTrashed: false }).ToList();
+        if (targets.Count == 0)
+        {
+            ShowToast(Loc.T("Select an item first"));
+            return;
+        }
+        Window parent = origin == ActionOrigin.ShelfPreview && _preview is { IsOpen: true } preview ? preview : this;
+        if (action == "export")
+        {
+            _holdOpen = true;
+            try
+            {
+                _organizer.Export(parent, targets, ShowToast);
+            }
+            finally
+            {
+                _holdOpen = false;
+                parent.Activate();
+            }
+            return;
+        }
+        var ids = targets.Select(i => i.Id).ToList();
+        OrganizerWindow? picker;
+        if (action == "name")
+        {
+            var naming = _organizer.NameAndPin(_palette, ids, ShowToast);
+            if (naming is not null)
+                naming.Advanced += (_, next) =>
+                {
+                    if (next is { } id) _nav.Select(id);
+                    Render();
+                    if (next is null) ShowToast(Loc.T("Pinned"));
+                };
+            picker = naming;
+        }
+        else picker = action == "folder" ? _organizer.PinToFolder(_palette, ids, ShowToast) : _organizer.AddTag(_palette, ids, ShowToast);
+        if (picker is null) return;
+        picker.Owner = parent;
+        picker.Closed += (_, _) =>
+        {
+            _picker = null;
+            if (_closingChildren) return;
+            if (picker.RestoreParentFocus && parent.IsVisible)
+            {
+                parent.Activate();
+                Keyboard.Focus(parent);
+            }
+            else ScheduleFocusCheck();
+        };
+        _picker = picker;
+        picker.Present(parent);
+    }
+
+    /// <summary>Drags the card, or the whole selection when the card is part of it.</summary>
+    private void DragCards(ShelfRowView row, ClipItem item)
+    {
+        var selected = _nav.SelectedItems();
+        var items = selected.Any(i => i.Id == item.Id) ? selected : [item];
+        _holdOpen = true;
+        try
+        {
+            DragOut.Start(row, [.. items.Select(i => _store.Find(i.Id)).OfType<ClipItem>()], _organizer.Files);
+        }
+        finally
+        {
+            _holdOpen = false;
+            ScheduleFocusCheck();
         }
     }
 
@@ -317,6 +398,8 @@ public partial class ShelfWindow : IPreviewHost
                 _store.RemoveFromFolder(ids, Guid.Parse(id[ActionCatalog.UnassignFolderPrefix.Length..]));
             else if (id.StartsWith(ActionCatalog.RemoveTagPrefix, StringComparison.Ordinal))
                 _store.RemoveTag(ids, id[ActionCatalog.RemoveTagPrefix.Length..]);
+            else if (id is "folder" or "name" or "tag" or "export")
+                Organize(id, origin);
             else if (origin == ActionOrigin.ShelfPreview && _preview is { IsOpen: true } preview)
                 RunInPreview(preview, id);
             else

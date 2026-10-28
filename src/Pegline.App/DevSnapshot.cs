@@ -12,6 +12,35 @@ namespace Pegline.App;
 /// <summary>Debug-only: renders a window far off-screen, without activation, to a PNG for visual checks.</summary>
 internal static class DevSnapshot
 {
+    /// <summary>Renders a picker's content without ever showing (or activating) its window.</summary>
+    public static void CaptureDetached(Window? window, Size size, string output, Action done)
+    {
+        if (window?.Content is not FrameworkElement element)
+        {
+            done();
+            return;
+        }
+        element.Measure(size);
+        element.Arrange(new Rect(size));
+        element.UpdateLayout();
+        element.Dispatcher.BeginInvoke(() =>
+        {
+            var bitmap = new RenderTargetBitmap((int)size.Width, (int)size.Height, 96, 96, PixelFormats.Pbgra32);
+            var visual = new DrawingVisual();
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawRectangle(new SolidColorBrush(Color.FromRgb(0x30, 0x34, 0x3C)), null, new Rect(size));
+                context.DrawRectangle(new VisualBrush(element), null, new Rect(size));
+            }
+            bitmap.Render(visual);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using (var stream = File.Create(output)) encoder.Save(stream);
+            window.Close();
+            done();
+        }, DispatcherPriority.ApplicationIdle);
+    }
+
     public static void Capture(Window? window, string target, string output, Action done)
     {
         if (window is null)

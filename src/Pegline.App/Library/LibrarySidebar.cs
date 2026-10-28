@@ -46,6 +46,9 @@ internal sealed class LibrarySidebar : Border
 
     public event EventHandler<string>? RemoveTagRequested;
 
+    /// <summary>Library items were dropped onto a folder row.</summary>
+    public event EventHandler<(Folder Folder, IReadOnlyList<Guid> Ids)>? ItemsDroppedOnFolder;
+
     /// <summary>Rows in keyboard order, so arrow keys can walk the sidebar.</summary>
     public IReadOnlyList<LibraryScope> Scopes => _rows.Select(r => r.Scope).ToList();
 
@@ -101,6 +104,26 @@ internal sealed class LibrarySidebar : Border
         entries.Add((Loc.T("Rename folder"), () => RenameFolderRequested?.Invoke(this, folder)));
         entries.Add((Loc.T("Remove folder"), () => RemoveFolderRequested?.Invoke(this, folder)));
         row.ContextMenu = Menu([.. entries]);
+        // Dragging Library items onto a folder adds them to it.
+        var idle = row.Background;
+        row.AllowDrop = true;
+        row.DragEnter += (_, e) =>
+        {
+            if (Platform.DragOut.IdsOf(e.Data).Count > 0) row.Background = _palette.Highlight;
+        };
+        row.DragLeave += (_, _) => row.Background = idle;
+        row.DragOver += (_, e) =>
+        {
+            e.Effects = Platform.DragOut.IdsOf(e.Data).Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        };
+        row.Drop += (_, e) =>
+        {
+            row.Background = idle;
+            var ids = Platform.DragOut.IdsOf(e.Data);
+            if (ids.Count > 0) ItemsDroppedOnFolder?.Invoke(this, (folder, ids));
+            e.Handled = true;
+        };
     }
 
     private static ContextMenu Menu(params (string Header, Action Click)[] entries)

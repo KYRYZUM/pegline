@@ -33,9 +33,10 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Alan adı ve çoklu etiket filtresi arayüzü (model hazır; Faz 7 filtre paneliyle)
 
 ## Faz 4 — Düzenleme ve aktarım
-- [ ] Klasöre sabitle (`Shift+P`, son kullanılanlar, `Ctrl+N`), Adlandır ve sabitle (`Alt+P`, toplu sıralı), etiket ekle (`Ctrl+Shift+T`)
-- [ ] Dışa aktar (`Ctrl+Shift+E`), sürükle-bırak (görsel dosya; `Alt` ile metin/link dosyası), kütüphanede klasöre sürükleme
-- [ ] Yapıştırma hedefi doğrulaması (UI Automation: parola alanı / değişmiş hedef reddi)
+- [x] Klasöre sabitle (`Shift+P`, son kullanılanlar, `Ctrl+N`, klasörsüz sabitle), Adlandır ve sabitle (`Alt+P`, toplu sıralı, arada silineni atlar), etiket ekle / oluştur (`Ctrl+Shift+T`); kardeş klasör adları benzersiz
+- [x] Dışa aktar (`Ctrl+Shift+E`, ad çakışmasında " (2)", üzerine yazmaz, başarısızları sayar), sürükle-bırak (görsel dosya; `Alt` ile metin/link .txt/.url dosyası; seçimin tamamı), kütüphanede kenar çubuğu klasörüne sürükleme
+- [x] Yapıştırma hedefi doğrulaması (UI Automation: parola alanı / değişmiş hedef reddi; yalnızca kimlik ve yetenek okunur)
+- [ ] Canlı kabul: sürükle-bırak hedefleri (Gezgin, tarayıcı, Office) ve gerçek uygulamalarda yapıştırma doğrulaması elle denenecek
 
 ## Faz 5 — Görsel işaretleme ve kırpma
 - [ ] Kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin; seç/taşı/boyutlandır; renk / kalınlık / dolgu

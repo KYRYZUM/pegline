@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using Pegline.App.Localization;
+using Pegline.App.Organize;
 using Pegline.Core.Actions;
 using Pegline.App.Platform;
 using Pegline.Core.Input;
@@ -24,6 +25,7 @@ public partial class ShelfWindow : Window
     private readonly ForegroundTracker _foreground;
     private readonly Action _quit;
     private readonly Action<LibraryScope?, ItemKind?, bool> _openLibrary;
+    private readonly Organizer _organizer;
     private readonly ShelfNavigator _nav = new();
     private readonly ThumbnailCache _thumbnails = new();
     private readonly Dictionary<ItemKind, ShelfRowView> _rows = [];
@@ -41,8 +43,9 @@ public partial class ShelfWindow : Window
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
 
-    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary)
+    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary, Organizer organizer)
     {
+        _organizer = organizer;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -58,6 +61,7 @@ public partial class ShelfWindow : Window
         {
             var row = new ShelfRowView(kind, store, _thumbnails);
             row.CardClicked += (_, e) => OnCardClicked(e.Item, e.Args);
+            row.CardDragged += (_, item) => DragCards(row, item);
             row.CardDoubleClicked += (_, e) =>
             {
                 _nav.Select(e.Item.Id);
@@ -453,7 +457,10 @@ public partial class ShelfWindow : Window
             case "library":
                 OpenLibrary(null, null, search: false);
                 return true;
-            case "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
+            case "folder" or "name" or "tag" or "export":
+                Organize(action, ActionOrigin.Line);
+                return true;
+            case "copyOCR" or "markup" or "crop":
                 ShowToast(Loc.T("Coming soon"));
                 return true;
             default:
@@ -526,8 +533,9 @@ public partial class ShelfWindow : Window
         var items = _nav.SelectedItems();
         if (items.Count == 0 || !_writer.Copy(items)) return;
         HideShelves(restoreFocus: false);
-        if (!await _foreground.PasteIntoPreviousAsync())
-            System.Windows.MessageBox.Show(Loc.T("Paste failed: the previous app is no longer available."), "Pegline");
+        var verdict = await _foreground.PasteIntoPreviousAsync();
+        if (verdict != Pegline.Core.Transfer.PasteVerdict.Allowed)
+            System.Windows.MessageBox.Show(Loc.T(Pegline.Core.Transfer.PastePolicy.Message(verdict)), "Pegline");
     }
 
     private void ConfirmTrash(IReadOnlyList<ClipItem> items)

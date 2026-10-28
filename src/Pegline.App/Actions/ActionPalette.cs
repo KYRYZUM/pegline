@@ -52,14 +52,10 @@ internal sealed class ActionPalette : FloatingWindow
         };
         _query.TextChanged += (_, _) =>
         {
-            _placeholder.Visibility = _query.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
             Filter(_query.Text);
         };
         Filter("");
     }
-
-    /// <summary>False when the palette closed because the user clicked another window.</summary>
-    public bool RestoreParentFocus { get; private set; } = true;
 
     public void ShowOver(Win32.RECT work, double scale, Win32.RECT anchor)
     {
@@ -117,27 +113,8 @@ internal sealed class ActionPalette : FloatingWindow
         grid.Children.Add(header);
 
         // Query field.
-        var input = new Grid { Margin = new Thickness(20, 10, 20, 0), Height = 30 };
-        input.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        input.ColumnDefinitions.Add(new ColumnDefinition());
-        input.Children.Add(new TextBlock { Text = Glyphs.Search, FontFamily = ShelfPalette.Icons, FontSize = 18, Foreground = _palette.Muted, VerticalAlignment = VerticalAlignment.Center, Width = 24 });
-        _query.FontSize = 19;
-        _query.Background = Brushes.Transparent;
-        _query.BorderThickness = new Thickness(0);
-        _query.Foreground = _palette.Foreground;
-        _query.CaretBrush = _palette.Foreground;
-        _query.VerticalContentAlignment = VerticalAlignment.Center;
-        _query.Margin = new Thickness(8, 0, 0, 0);
-        Grid.SetColumn(_query, 1);
-        input.Children.Add(_query);
-        _placeholder.Text = Loc.T("Search actions…");
-        _placeholder.FontSize = 19;
-        _placeholder.Foreground = _palette.Muted;
-        _placeholder.IsHitTestVisible = false;
-        _placeholder.VerticalAlignment = VerticalAlignment.Center;
-        _placeholder.Margin = new Thickness(11, 0, 0, 0);
-        Grid.SetColumn(_placeholder, 1);
-        input.Children.Add(_placeholder);
+        var input = SurfaceParts.Input(_palette, _query, _placeholder, Glyphs.Search, Loc.T("Search actions…"));
+        input.Margin = new Thickness(20, 10, 20, 0);
         Grid.SetRow(input, 1);
         grid.Children.Add(input);
 
@@ -177,53 +154,12 @@ internal sealed class ActionPalette : FloatingWindow
         return surface;
     }
 
-    private Border HeaderButton(string glyph, string tooltip, Action click, string? label = null)
-    {
-        var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        content.Children.Add(new TextBlock { Text = glyph, FontFamily = ShelfPalette.Icons, FontSize = 11, Foreground = _palette.Muted, VerticalAlignment = VerticalAlignment.Center });
-        if (label is not null)
-            content.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = _palette.Muted, Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
-        var button = new Border
-        {
-            MinWidth = 24,
-            Height = 24,
-            Padding = new Thickness(6, 0, 6, 0),
-            CornerRadius = new CornerRadius(6),
-            Background = Brushes.Transparent,
-            Cursor = Cursors.Hand,
-            ToolTip = tooltip,
-            Child = content,
-        };
-        button.MouseEnter += (_, _) => button.Background = _palette.Chip;
-        button.MouseLeave += (_, _) => button.Background = Brushes.Transparent;
-        button.MouseLeftButtonUp += (_, e) =>
-        {
-            click();
-            e.Handled = true;
-        };
-        return button;
-    }
+    private Border HeaderButton(string glyph, string tooltip, Action click, string? label = null) =>
+        SurfaceParts.HeaderButton(_palette, glyph, tooltip, click, label);
 
-    private Border Keycap(string text) => new()
-    {
-        CornerRadius = new CornerRadius(4),
-        BorderBrush = _palette.PanelBorder,
-        BorderThickness = new Thickness(1),
-        Background = _palette.Chip,
-        Padding = new Thickness(5, 0, 5, 1),
-        Margin = new Thickness(0, 0, 6, 0),
-        VerticalAlignment = VerticalAlignment.Center,
-        Child = new TextBlock { Text = text, FontSize = 10.5, Foreground = _palette.Foreground },
-    };
+    private Border Keycap(string text) => SurfaceParts.Keycap(_palette, text);
 
-    private TextBlock Hint(string text) => new()
-    {
-        Text = text,
-        FontSize = 10.5,
-        Foreground = _palette.Muted,
-        Margin = new Thickness(0, 0, 10, 0),
-        VerticalAlignment = VerticalAlignment.Center,
-    };
+    private TextBlock Hint(string text) => SurfaceParts.Hint(_palette, text);
 
     private void Filter(string query)
     {

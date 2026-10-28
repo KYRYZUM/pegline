@@ -65,7 +65,13 @@ internal sealed class ShelfRowView : Grid
 
     public event EventHandler? HeaderClicked;
 
+    /// <summary>The pointer dragged a card past the system threshold; the handler runs the drag.</summary>
+    public event EventHandler<ClipItem>? CardDragged;
+
     public event EventHandler<int>? PageRequested;
+
+    private Guid? _pressed;
+    private Point _pressPoint;
 
     public static string Title(ItemKind kind) => Loc.T(kind switch
     {
@@ -313,12 +319,22 @@ internal sealed class ShelfRowView : Grid
         card.MouseLeave += (_, _) => rotate.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(focused ? 0 : angle, TimeSpan.FromMilliseconds(260)) { EasingFunction = new ElasticEase { Oscillations = 1, Springiness = 4 } });
         card.MouseLeftButtonUp += (_, e) =>
         {
-            if (e.ClickCount == 1) CardClicked?.Invoke(this, (item, e));
+            if (e.ClickCount == 1 && _pressed == item.Id) CardClicked?.Invoke(this, (item, e));
+            _pressed = null;
             e.Handled = true;
         };
         card.MouseLeftButtonDown += (_, e) =>
         {
+            _pressed = item.Id;
+            _pressPoint = e.GetPosition(this);
             if (e.ClickCount == 2) CardDoubleClicked?.Invoke(this, (item, e));
+        };
+        card.MouseMove += (_, e) =>
+        {
+            if (_pressed != item.Id || e.LeftButton != MouseButtonState.Pressed || !Platform.DragOut.Exceeded(_pressPoint, e.GetPosition(this))) return;
+            // A drag is not a click: the release that ends it must not copy.
+            _pressed = null;
+            CardDragged?.Invoke(this, item);
         };
         card.Clip = null;
         return card;

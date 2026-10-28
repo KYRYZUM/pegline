@@ -33,7 +33,7 @@ internal static class Glyphs
         ["save"] = "", ["inbox"] = "", ["clock"] = "", ["grid"] = "", ["list"] = "",
         ["sidebar"] = "", ["inspector"] = "", ["fullscreen"] = "", ["filter"] = "", ["filterClear"] = "",
         ["sort"] = "", ["calendar"] = "", ["refresh"] = "", ["desktop"] = "", ["trim"] = "",
-        ["eraser"] = "", ["download"] = "", ["power"] = "", ["command"] = Command,
+        ["eraser"] = "", ["download"] = "", ["power"] = "", ["command"] = Command, ["add"] = "",
     };
 
     public static string For(string symbol) => Map.GetValueOrDefault(symbol, Command);
