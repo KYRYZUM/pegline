@@ -1059,7 +1059,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
         "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
         "menu.openScreenshotsFolder", "menu.resetZoom", "menu.settings", "menu.settingsGeneral", "menu.settingsHistory",
-        "menu.settingsSources", "menu.settingsShortcuts", "menu.settingsAbout", "menu.checkUpdates",
+        "menu.settingsSources", "menu.settingsShortcuts", "menu.settingsAbout", "menu.checkUpdates", "menu.installUpdate",
     ];
 
     /// <summary>Opens Settings at a section; the Library stays open behind it.</summary>
@@ -1104,6 +1104,8 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             ActiveFavorites = _model.ShowingPinnedOnly,
             GlobalToggleHint = shortcuts.GetValueOrDefault("toggle", ""),
             CopyLatestHint = shortcuts.GetValueOrDefault("copyLatest", ""),
+            CanCheckUpdates = App.UpdateChecks?.IsInstalled ?? false,
+            CanInstallUpdate = App.UpdateChecks?.AvailableVersion is not null,
             LibraryScope = query.Scope,
             Folders = _store.Folders,
             Tags = _store.AllTags,

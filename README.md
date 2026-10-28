@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/brand/pegline-512.png" width="128" alt="Pegline"></p>
+
 # Pegline
 
 **Kopyaladığın her şey, ipte asılı.** Windows için klavye odaklı, yerel pano geçmişi ve kütüphanesi.
@@ -8,7 +10,15 @@ Pegline; görselleri, metinleri ve linkleri ekranın üstünden kayarak inen ü�
 
 ## Durum
 
-Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](ROADMAP.md) dosyasında.
+`0.1.0`. Hangi özelliklerin tamamlandığı [ROADMAP.md](ROADMAP.md) dosyasında.
+
+## Kurulum ve güncelleme
+
+[Releases](https://github.com/KYRYZUM/pegline/releases) sayfasından `PeglineApp-win-Setup.exe` dosyasını indirip çalıştır. Yönetici izni istemez; `%LOCALAPPDATA%\PeglineApp` altına kurulur, masaüstüne ve Başlat menüsüne kısayol ekler. Kütüphanen ayrı klasörde (`%LOCALAPPDATA%\Pegline`) durur; kaldırmak ya da güncellemek ona dokunmaz.
+
+Kurulu Pegline açılışta ve saatte bir yeni sürüm arar (Ayarlar › Güncellemeler'den kapatılabilir). Yeni sürüm bildirim ve tepsi menüsünde görünür; indirme ve kurulum yalnızca "Kur ve yeniden aç" seçilince başlar, sonraki sürümler yalnızca değişen kısmı (delta) indirir. Depo gizliyken güncelleme için Ayarlar › Güncellemeler'e `Contents: Read-only` izinli bir GitHub jetonu kaydedilir; jeton Windows hesabına şifrelenir (DPAPI).
+
+Kurulum dosyası henüz kod imzalı değil; Windows SmartScreen ilk açılışta "Ek bilgi › Yine de çalıştır" isteyebilir. Sertifika olduğunda `scripts/pack.ps1 -SignParams "..."` ile imzalanır.
 
 ## Şu an çalışanlar
 
@@ -40,7 +50,10 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 pwsh scripts/prepare-search-models.ps1   # görsel arama modelleri (bir kez, 383 MB, SHA-256 doğrulamalı)
 dotnet test                     # çekirdek + davranış sözleşmesi testleri
 dotnet run --project src/Pegline.App
+pwsh scripts/pack.ps1 -Version 0.1.0  # Releases\ altında Setup.exe, taşınabilir zip ve güncelleme paketleri
 ```
+
+Sürüm çıkarmak: `git tag v0.2.0 && git push origin v0.2.0`. `Release` iş akışı testleri çalıştırır, modelleri hazırlar, önceki sürüme göre delta paketi üretir ve GitHub Release'i yayımlar.
 
 Görsel arama modelleri (`assets/CLIP`, Git dışında) derlemeye eklenir; çalışan uygulama hiçbir şey indirmez, sorgu göndermez. Modeller olmadan da derlenir ve çalışır, yalnızca görsel arama kapalı olur.
 

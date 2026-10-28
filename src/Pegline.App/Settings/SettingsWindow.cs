@@ -25,7 +25,6 @@ namespace Pegline.App.Settings;
 /// </summary>
 internal sealed class SettingsWindow : Window
 {
-    public const string ReleasesUrl = "https://github.com/KYRYZUM/pegline/releases";
 
     private static readonly (string Id, string Title, string Glyph)[] Sections =
     [
@@ -40,6 +39,7 @@ internal sealed class SettingsWindow : Window
     private readonly SettingsStore _settings;
     private readonly LibraryStore _store;
     private readonly HotKeyService _hotKeys;
+    private readonly Updates.UpdateService _updates;
     private readonly ShelfPalette _palette;
     private readonly ShelfTheme _launchTheme;
     private readonly Action _openLibrary;
@@ -59,11 +59,12 @@ internal sealed class SettingsWindow : Window
 
     private sealed record Recording(bool Global, string Action, IDisposable? Lease);
 
-    public SettingsWindow(SettingsStore settings, LibraryStore store, HotKeyService hotKeys, ShelfTheme launchTheme, Action openLibrary, Action reopen)
+    public SettingsWindow(SettingsStore settings, LibraryStore store, HotKeyService hotKeys, Updates.UpdateService updates, ShelfTheme launchTheme, Action openLibrary, Action reopen)
     {
         _settings = settings;
         _store = store;
         _hotKeys = hotKeys;
+        _updates = updates;
         _launchTheme = launchTheme;
         _palette = ShelfPalette.For(launchTheme);
         _openLibrary = openLibrary;
@@ -85,6 +86,10 @@ internal sealed class SettingsWindow : Window
         Content = Build();
 
         _settings.Changed += (_, _) => QueueRebuild();
+        _updates.Changed += (_, _) =>
+        {
+            if (_section is "updates" or "about") QueueRebuild();
+        };
         _store.Changed += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             if (_section == "history") QueueRebuild();
@@ -114,6 +119,7 @@ internal sealed class SettingsWindow : Window
         _notice = null;
         Rebuild(keepScroll: false);
         Show();
+        if (_section == "updates") RefreshUpdates();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
         Win32.ForceForeground(new WindowInteropHelper(this).Handle);
@@ -146,7 +152,7 @@ internal sealed class SettingsWindow : Window
 
         var side = new StackPanel { Margin = new Thickness(12, 20, 12, 12) };
         var brand = new StackPanel { Margin = new Thickness(10, 0, 0, 18) };
-        brand.Children.Add(new TextBlock { Text = "", FontFamily = ShelfPalette.Icons, FontSize = 26, Foreground = _palette.Accent });
+        brand.Children.Add(Mark(36));
         brand.Children.Add(new TextBlock { Text = "Pegline", FontSize = 15, FontWeight = FontWeights.SemiBold, Foreground = _palette.Foreground, Margin = new Thickness(0, 6, 0, 0) });
         brand.Children.Add(new TextBlock { Text = VersionText(), FontSize = 11.5, Foreground = _palette.Muted, TextWrapping = TextWrapping.Wrap });
         side.Children.Add(brand);
@@ -206,6 +212,13 @@ internal sealed class SettingsWindow : Window
         _section = section;
         _notice = null;
         Rebuild(keepScroll: false);
+        if (section == "updates") RefreshUpdates();
+    }
+
+    private void RefreshUpdates()
+    {
+        if (_updates.IsInstalled && !_updates.Busy && (_updates.LastChecked is not { } last || DateTimeOffset.Now - last > TimeSpan.FromMinutes(1)))
+            _ = _updates.CheckAsync(manual: true);
     }
 
     private void QueueRebuild()
@@ -636,18 +649,61 @@ internal sealed class SettingsWindow : Window
     {
         var current = _settings.Current;
         var identity = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 10) };
-        identity.Children.Add(new TextBlock { Text = "", FontFamily = ShelfPalette.Icons, FontSize = 30, Foreground = _palette.Accent, VerticalAlignment = VerticalAlignment.Center });
+        identity.Children.Add(Mark(44));
         var name = new StackPanel { Margin = new Thickness(14, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         name.Children.Add(new TextBlock { Text = "Pegline", FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = _palette.Foreground });
         name.Children.Add(new TextBlock { Text = VersionText(), FontSize = 12, Foreground = _palette.Muted });
+        if (_updates.AvailableVersion is { } available)
+            name.Children.Add(new TextBlock { Text = Loc.F("Pegline {0} is available.", available), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = _palette.Accent, Margin = new Thickness(0, 3, 0, 0) });
         identity.Children.Add(name);
         Card(null, null, identity);
 
-        Card(Loc.T("App updates"), Loc.T("Your history and settings stay on this PC."),
-            Check(Loc.T("Automatically check for updates"), current.AutoCheckUpdates, value => _settings.Update(s => s.AutoCheckUpdates = value), "autoUpdates"),
-            Caption(Loc.T("Checks at launch and every hour. You choose when to download and install."), new Thickness(0, 6, 0, 2)),
-            Caption(Loc.T("This copy was built from source, so it does not update itself. The installer version updates from GitHub Releases."), new Thickness(0, 2, 0, 8)),
-            Buttons(("Open releases page", OpenReleases, true, "releases")));
+        var rows = new List<UIElement?>
+        {
+            Check(Loc.T("Automatically check for updates"), current.AutoCheckUpdates, value => _settings.Update(s => s.AutoCheckUpdates = value), "autoUpdates", enabled: _updates.IsInstalled),
+            Caption(Loc.T("Checks at launch and every hour. You choose when to download and install."), new Thickness(0, 6, 0, 6)),
+        };
+        if (!_updates.IsInstalled)
+        {
+            rows.Add(Caption(_updates.Status, new Thickness(0, 6, 0, 8)));
+            rows.Add(Buttons(("Open releases page", OpenReleases, true, "releases")));
+            Card(Loc.T("App updates"), Loc.T("Your history and settings stay on this PC."), [.. rows]);
+            if (_notice is not null) _content.Children.Add(Caption(_notice, new Thickness(4, 8, 4, 0)));
+            return;
+        }
+
+        var state = new StackPanel { Margin = new Thickness(0, 8, 0, 6) };
+        state.Children.Add(new TextBlock { Text = _updates.Status, FontSize = 13.5, Foreground = _palette.Foreground, TextWrapping = TextWrapping.Wrap });
+        if (_updates.LastChecked is { } checkedAt)
+            state.Children.Add(Caption(Loc.F("Last checked {0}", checkedAt.LocalDateTime.ToString("g", System.Globalization.CultureInfo.CurrentCulture)), new Thickness(0, 3, 0, 0)));
+        if (_updates.Error is { } error)
+            state.Children.Add(new TextBlock { Text = error, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71)), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
+        if (_updates.Busy)
+            state.Children.Add(new ProgressBar { Height = 4, Maximum = 100, Value = _updates.Progress ?? 0, IsIndeterminate = _updates.Progress is null, Margin = new Thickness(0, 8, 0, 0) });
+        rows.Add(state);
+
+        var actions = _updates.AvailableVersion is null
+            ? Buttons(("Check for updates…", () => _ = _updates.CheckAsync(manual: true), true, "check"))
+            : Buttons(("Install and reopen", () => _ = _updates.InstallAsync(), true, "install"),
+                ("Release notes", () => _notice = ShellActions.OpenUrl(_updates.ReleaseNotesUrl!), false, "notes"));
+        actions.IsEnabled = !_updates.Busy;
+        rows.Add(actions);
+        Card(Loc.T("App updates"), Loc.T("Updates are downloaded only when you choose to install. Your history and settings stay on this PC."), [.. rows]);
+
+        var token = new PasswordBox { MinWidth = 280, Tag = "token", VerticalAlignment = VerticalAlignment.Center };
+        AutomationName(token, Loc.T("GitHub access token"));
+        var tokenButtons = Buttons(
+            ("Save token", () =>
+            {
+                _updates.SaveToken(token.Password);
+                token.Clear();
+                _ = _updates.CheckAsync(manual: true);
+            }, false, "saveToken"),
+            ("Disconnect GitHub", _updates.ForgetToken, false, "forgetToken"));
+        tokenButtons.IsEnabled = !_updates.Busy;
+        Card(Loc.T("GitHub access"), Loc.T("Needed only while the releases are private: create a fine-grained token for this repository with Contents: Read-only. It is encrypted for your Windows account and never leaves this PC except to GitHub."),
+            Labeled(Loc.T("GitHub access token"), _updates.HasToken ? Loc.T("Token saved") : null, token),
+            tokenButtons);
         if (_notice is not null) _content.Children.Add(Caption(_notice, new Thickness(4, 8, 4, 0)));
     }
 
@@ -659,6 +715,7 @@ internal sealed class SettingsWindow : Window
             Caption(Loc.T("Image, text and link shelves, with a private local library."), new Thickness(0, 8, 0, 8)));
         Card(null, null, Buttons(
             ("Check for updates…", () => Choose("updates"), false, "checkUpdates"),
+            ("Open releases page", OpenReleases, false, "releases"),
             ("Open data folder", () => _notice = ShellActions.Open(App.DataDirectory), false, "dataFolder"),
             ("Third-party notices", OpenNotices, false, "notices")));
         if (_notice is not null) _content.Children.Add(Caption(_notice, new Thickness(4, 8, 4, 0)));
@@ -666,7 +723,7 @@ internal sealed class SettingsWindow : Window
 
     private void OpenReleases()
     {
-        _notice = ShellActions.OpenUrl(ReleasesUrl);
+        _notice = ShellActions.OpenUrl(Pegline.App.Updates.UpdateService.ReleasesUrl);
         if (_notice is not null) Rebuild(keepScroll: true);
     }
 
@@ -693,6 +750,7 @@ internal sealed class SettingsWindow : Window
     internal static string VersionText()
     {
         var info = typeof(SettingsWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
+        if (Pegline.App.Updates.UpdateService.IsInstalledBuild) info = info.Split('+')[0];
         var plus = info.IndexOf('+');
         var version = plus < 0 ? info : info[..plus];
         var build = plus < 0 ? "" : info[(plus + 1)..];
@@ -848,6 +906,21 @@ internal sealed class SettingsWindow : Window
             Foreground = gesture.Length > 0 ? _palette.Foreground : _palette.Muted,
         },
     };
+
+    private static readonly Lazy<ImageSource?> MarkImage = new(() =>
+    {
+        using var stream = typeof(SettingsWindow).Assembly.GetManifestResourceStream("Pegline.Brand.mark.png");
+        if (stream is null) return null;
+        var image = new System.Windows.Media.Imaging.BitmapImage();
+        image.BeginInit();
+        image.StreamSource = stream;
+        image.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+        image.EndInit();
+        image.Freeze();
+        return image;
+    });
+
+    private static Image Mark(double size) => new() { Source = MarkImage.Value, Width = size, Height = size, HorizontalAlignment = HorizontalAlignment.Left };
 
     private static void AutomationName(DependencyObject element, string name) =>
         System.Windows.Automation.AutomationProperties.SetName(element, name);

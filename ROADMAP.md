@@ -73,5 +73,9 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: Ayarlar penceresi, kısayol kaydedici ve üst kenardan açılma elle denenecek
 
 ## Faz 10 — Dağıtım
-- [ ] Kurulum paketi ve imzalı otomatik güncelleme (Velopack + GitHub Releases), saatlik kontrol, onaylı kurulum
-- [ ] Logo / ikon (kullanıcıdan gelecek), uygulama ve kurulum ikonları
+- [x] Kurulum paketi (Velopack): `PeglineApp-win-Setup.exe`, taşınabilir zip, tam ve delta güncelleme paketleri; yönetici izni yok; kurulum klasörü (`PeglineApp`) kütüphane klasöründen (`Pegline`) ayrı, kaldırma kütüphaneye dokunmaz ve oturum açılış kaydını siler
+- [x] GitHub Releases'tan güncelleme: açılışta ve saatte bir kontrol (kapatılabilir), bildirim ve tepsi menüsü, indirme ve kurulum yalnızca kullanıcı seçince, kurulumdan önce açık düzenlemeler kaydedilir; gizli depo için DPAPI ile şifrelenmiş GitHub jetonu; Eylemler paletinde "Güncellemeleri denetle" / "Güncellemeyi kur"
+- [x] `v*` etiketiyle sürüm iş akışı (test, model hazırlama, delta, yayın); yerel `scripts/pack.ps1`
+- [x] Logo: uygulama / kurulum ikonu (koyu yuvarlak karo), şeffaf tepsi simgesi, Ayarlar ve kurulum ekranında logo
+- [ ] Kod imzalama sertifikası (şimdilik imzasız; SmartScreen uyarısı)
+- [ ] Canlı kabul: kurulum, güncelleme ve kaldırma elle denenecek

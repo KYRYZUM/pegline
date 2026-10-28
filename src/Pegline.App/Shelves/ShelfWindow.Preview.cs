@@ -38,7 +38,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
         "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
         "menu.settings", "menu.settingsGeneral", "menu.settingsHistory", "menu.settingsSources", "menu.settingsShortcuts",
-        "menu.settingsAbout", "menu.checkUpdates",
+        "menu.settingsAbout", "menu.checkUpdates", "menu.installUpdate",
     ];
 
     /// <summary>Opens Settings at a section ("general", "history", "sources", "shortcuts", "updates", "about").</summary>
@@ -53,6 +53,7 @@ public partial class ShelfWindow : IPreviewHost
         "settingsShortcuts" => "shortcuts",
         "settingsAbout" => "about",
         "checkUpdates" => "updates",
+        "installUpdate" => "install",
         _ => null,
     };
 
@@ -508,6 +509,8 @@ public partial class ShelfWindow : IPreviewHost
             CanRedoMarkup = single is { Kind: ItemKind.Image } && _store.CanRedoImageEdit(single.Id),
             CanTakeDownLeft = index > 0,
             CanTakeDownRight = index >= 0 && index < row.Count - 1,
+            CanCheckUpdates = App.UpdateChecks?.IsInstalled ?? false,
+            CanInstallUpdate = App.UpdateChecks?.AvailableVersion is not null,
         };
     }
 

@@ -41,6 +41,10 @@ public partial class App : Application
     private FolderWatcher? _folders;
     private Settings.SettingsWindow? _settingsWindow;
     private EdgeReveal? _edge;
+    private Updates.UpdateService? _updates;
+
+    /// <summary>App updates, for the Actions palette and Settings.</summary>
+    internal static Updates.UpdateService? UpdateChecks { get; private set; }
     private ShelfTheme _launchTheme;
     private readonly ScreenshotPairing _pairing = new();
     private string _watchedKey = "";
@@ -81,6 +85,7 @@ public partial class App : Application
         // The language is chosen once per run; Settings offers to reopen when it changes.
         Loc.Use(_settings.Current.Language);
         _launchTheme = _settings.Current.Theme;
+        _updates = UpdateChecks = new Updates.UpdateService(_settings, Dispatcher, DataDirectory, PrepareForUpdate);
         _store = new LibraryStore(DataDirectory) { RetentionDays = _settings.Current.RetentionDays };
         _store.Expire();
 
@@ -101,7 +106,8 @@ public partial class App : Application
         _library.FilesDropped += (_, paths) => CollectCopiedFiles(paths, intoLibrary: true);
         _hotKeys = new HotKeyService(_messages);
         _hotKeys.Pressed += (_, action) => OnGlobalShortcut(action);
-        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, () => OpenSettings("general"), Quit);
+        _tray = new TrayIcon(_settings, _updates, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, OpenSettings, Quit);
+        _updates.Found += (_, version) => _tray.Notify(Loc.T("Update available"), Loc.F("Pegline {0} is available. Open Settings › Updates to install it.", version));
         _shelves.OpenSettings = OpenSettings;
         _library.OpenSettings = OpenSettings;
         ApplyGlobalShortcuts();
@@ -145,6 +151,7 @@ public partial class App : Application
             if (_settings.Current.IndexImages) _ocr.Enqueue(_store.Items);
             _visual.Start();
             _links.RequestAll();
+            _updates.Start();
         }, DispatcherPriority.ApplicationIdle);
 
         new Thread(() =>
@@ -295,7 +302,7 @@ public partial class App : Application
         }
         if (e.Args is ["--snapshot", var page, var pageShot] && page.StartsWith("settings-", StringComparison.Ordinal))
         {
-            _settingsWindow = new Settings.SettingsWindow(_settings, _store, _hotKeys, _launchTheme, () => { }, () => { });
+            _settingsWindow = new Settings.SettingsWindow(_settings, _store, _hotKeys, _updates, _launchTheme, () => { }, () => { });
             DevSnapshot.Capture(_settingsWindow, page, pageShot, () => Shutdown());
             return;
         }
@@ -450,11 +457,21 @@ public partial class App : Application
         return _settings.Current.ShowOverFullScreen || !Win32.IsFullscreenForeground();
     }
 
+    /// <summary>Opens Settings at a section; "install" opens Updates and installs the update found.</summary>
     private void OpenSettings(string section)
     {
-        if (_settings is null || _store is null || _hotKeys is null) return;
-        _settingsWindow ??= new Settings.SettingsWindow(_settings, _store, _hotKeys, _launchTheme, () => OpenLibrary(null, null, false), Reopen);
-        _settingsWindow.Present(section);
+        if (_settings is null || _store is null || _hotKeys is null || _updates is null) return;
+        _settingsWindow ??= new Settings.SettingsWindow(_settings, _store, _hotKeys, _updates, _launchTheme, () => OpenLibrary(null, null, false), Reopen);
+        _settingsWindow.Present(section == "install" ? "updates" : section);
+        if (section == "install") _ = _updates.InstallAsync();
+    }
+
+    /// <summary>Saves open edits and closes the windows before the installer replaces the app.</summary>
+    private void PrepareForUpdate()
+    {
+        _settingsWindow?.CloseForQuit();
+        _library?.CloseForQuit();
+        _shelves?.Close();
     }
 
     /// <summary>Quits and starts again, so a new language reaches every window. Open edits are saved by quitting.</summary>

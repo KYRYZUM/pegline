@@ -8,12 +8,8 @@ internal static class LoginItem
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string Name = "Pegline";
 
-    /// <summary>Development builds never register themselves; they run from a build folder that moves.</summary>
-#if DEBUG
-    public static bool IsAvailable => false;
-#else
-    public static bool IsAvailable => Environment.ProcessPath is not null;
-#endif
+    /// <summary>Only the installed app registers itself; it keeps one path across updates, unlike a build folder.</summary>
+    public static bool IsAvailable => Updates.UpdateService.IsInstalledBuild && Environment.ProcessPath is not null;
 
     private static string Command => $"\"{Environment.ProcessPath}\" --login";
 
@@ -26,10 +22,10 @@ internal static class LoginItem
         }
     }
 
-    /// <summary>Returns false when Windows refused the change (policy or permissions).</summary>
-    public static bool Set(bool enabled)
+    /// <summary>Returns false when Windows refused the change. <paramref name="force"/> removes the entry from any build (uninstall).</summary>
+    public static bool Set(bool enabled, bool force = false)
     {
-        if (!IsAvailable) return false;
+        if (!IsAvailable && !force) return false;
         try
         {
             using var key = Registry.CurrentUser.CreateSubKey(RunKey);

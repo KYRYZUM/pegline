@@ -36,6 +36,7 @@ SOFTWARE.
 ## Runtime dependencies
 
 - Microsoft.Data.Sqlite / SQLitePCLRaw — MIT; SQLite — public domain.
+- Velopack (installer and updates), Copyright (c) Velopack Ltd. — MIT License.
 
 ## Apple MobileCLIP-S2 (visual search)
 
