@@ -13,7 +13,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly SettingsStore _settings;
     private readonly Icon _image;
 
-    public TrayIcon(SettingsStore settings, Action showShelves, Action quit)
+    public TrayIcon(SettingsStore settings, Action showShelves, Action openLibrary, Action quit)
     {
         _settings = settings;
         _image = DrawIcon();
@@ -23,18 +23,19 @@ internal sealed class TrayIcon : IDisposable
             if (e.Button == MouseButtons.Left) showShelves();
         };
         _icon.ContextMenuStrip = new ContextMenuStrip();
-        _icon.ContextMenuStrip.Opening += (_, _) => BuildMenu(showShelves, quit);
-        BuildMenu(showShelves, quit);
+        _icon.ContextMenuStrip.Opening += (_, _) => BuildMenu(showShelves, openLibrary, quit);
+        BuildMenu(showShelves, openLibrary, quit);
     }
 
     public void Notify(string title, string text) => _icon.ShowBalloonTip(4000, title, text, ToolTipIcon.None);
 
-    private void BuildMenu(Action showShelves, Action quit)
+    private void BuildMenu(Action showShelves, Action openLibrary, Action quit)
     {
         var menu = _icon.ContextMenuStrip!;
         menu.Items.Clear();
         var current = _settings.Current;
         menu.Items.Add(Loc.T("Show shelves") + "\t" + current.GlobalShortcuts.GetValueOrDefault("toggle", ""), null, (_, _) => showShelves());
+        menu.Items.Add(Loc.T("Open Library") + "	" + current.GlobalShortcuts.GetValueOrDefault("library", ""), null, (_, _) => openLibrary());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(Toggle(Loc.T("Capture copied text"), current.CaptureText, value => _settings.Update(s => s.CaptureText = value)));
         menu.Items.Add(Toggle(Loc.T("Capture copied images"), current.CaptureImages, value => _settings.Update(s => s.CaptureImages = value)));

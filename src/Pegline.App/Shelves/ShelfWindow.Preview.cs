@@ -10,6 +10,7 @@ using Pegline.App.Platform;
 using Pegline.App.Preview;
 using Pegline.Core.Actions;
 using Pegline.Core.Input;
+using Pegline.Core.Library;
 using Pegline.Core.Models;
 using Pegline.Core.Shelves;
 
@@ -30,6 +31,8 @@ public partial class ShelfWindow : IPreviewHost
         "select1", "select2", "select3", "select4", "select5", "select6", "select7", "select8", "select9",
         "menu.toggleLine", "menu.quit", "menu.retain", "menu.takeDownLeft", "menu.takeDownRight", "menu.resetZoom",
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
+        "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
+        "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -244,6 +247,8 @@ public partial class ShelfWindow : IPreviewHost
 
     private static bool IsImplemented(string id) =>
         ImplementedActions.Contains(id)
+        || id.StartsWith(ActionCatalog.OpenFolderPrefix, StringComparison.Ordinal)
+        || id.StartsWith(ActionCatalog.OpenTagPrefix, StringComparison.Ordinal)
         || id.StartsWith(ActionCatalog.AssignFolderPrefix, StringComparison.Ordinal)
         || id.StartsWith(ActionCatalog.UnassignFolderPrefix, StringComparison.Ordinal)
         || id.StartsWith(ActionCatalog.RemoveTagPrefix, StringComparison.Ordinal);
@@ -297,6 +302,12 @@ public partial class ShelfWindow : IPreviewHost
         {
             if (id.StartsWith(ActionCatalog.MenuPrefix, StringComparison.Ordinal))
                 RunMenu(id[ActionCatalog.MenuPrefix.Length..], targets);
+            else if (id.StartsWith(ActionCatalog.OpenFolderPrefix, StringComparison.Ordinal))
+                OpenLibrary(LibraryScope.ForFolder(Guid.Parse(id[ActionCatalog.OpenFolderPrefix.Length..])), null, search: false);
+            else if (id.StartsWith(ActionCatalog.OpenTagPrefix, StringComparison.Ordinal))
+                OpenLibrary(LibraryScope.ForTag(id[ActionCatalog.OpenTagPrefix.Length..]), null, search: false);
+            else if (id is "librarySearch" or "allTypes" or "images" or "texts" or "links")
+                OpenLibrary(null, id switch { "images" => ItemKind.Image, "texts" => ItemKind.Text, "links" => ItemKind.Link, _ => null }, search: id == "librarySearch");
             else if (id.StartsWith(ActionCatalog.AssignFolderPrefix, StringComparison.Ordinal))
             {
                 _store.AddToFolder(ids, Guid.Parse(id[ActionCatalog.AssignFolderPrefix.Length..]));
@@ -371,6 +382,14 @@ public partial class ShelfWindow : IPreviewHost
             case "clearUnsavedHistory":
                 ConfirmClearHistory();
                 break;
+            case "scopeSaved": OpenLibrary(LibraryScope.Saved, null, search: false); break;
+            case "scopeFavorites": OpenLibrary(LibraryScope.Favorites, null, search: false); break;
+            case "scopeUnorganized": OpenLibrary(LibraryScope.Unorganized, null, search: false); break;
+            case "scopeRecent": OpenLibrary(LibraryScope.Recent, null, search: false); break;
+            case "scopeTrash": OpenLibrary(LibraryScope.Trash, null, search: false); break;
+            case "newNote":
+                OpenLibrary(null, null, search: false);
+                break;
             case "openScreenshotsFolder":
                 var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
                 if (Directory.Exists(folder)) Shell(folder, "");
@@ -380,6 +399,12 @@ public partial class ShelfWindow : IPreviewHost
                 ShowToast(Loc.T("Coming soon"));
                 break;
         }
+    }
+
+    private void OpenLibrary(LibraryScope? scope, ItemKind? kind, bool search)
+    {
+        HideShelves(restoreFocus: false);
+        _openLibrary(scope, kind, search);
     }
 
     private void Shell(string target, string arguments)

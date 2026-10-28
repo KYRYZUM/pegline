@@ -1,9 +1,11 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using Pegline.App.Library;
 using Pegline.App.Localization;
 using Pegline.App.Platform;
 using Pegline.App.Shelves;
+using Pegline.Core.Library;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
 
@@ -27,6 +29,7 @@ public partial class App : Application
     private HotKeyService? _hotKeys;
     private TrayIcon? _tray;
     private ShelfWindow? _shelves;
+    private LibraryWindow? _library;
     private DispatcherTimer? _expiry;
 
     public static string DataDirectory { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductFolder);
@@ -56,14 +59,15 @@ public partial class App : Application
 
         var writer = new ClipboardWriter(_store);
         var foreground = new ForegroundTracker();
-        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit);
+        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary);
+        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
         _clipboard.Captured += (_, content) => Capture(content);
         _hotKeys = new HotKeyService(_messages);
         _hotKeys.Pressed += (_, action) => OnGlobalShortcut(action);
-        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), Quit);
+        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), Quit);
         ApplyGlobalShortcuts();
 
         _settings.Changed += (_, _) =>
@@ -89,6 +93,14 @@ public partial class App : Application
                 Dispatcher.BeginInvoke(() => _shelves?.ShowShelves());
         }) { IsBackground = true, Name = "Pegline single instance" }.Start();
 
+#if DEBUG
+        // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--snapshot", var target, var output])
+        {
+            DevSnapshot.Capture(target.StartsWith("library", StringComparison.Ordinal) ? _library : _shelves, target, output, () => Shutdown());
+            return;
+        }
+#endif
         if (!File.Exists(Path.Combine(DataDirectory, ".welcomed")))
         {
             File.WriteAllText(Path.Combine(DataDirectory, ".welcomed"), "");
@@ -132,6 +144,10 @@ public partial class App : Application
             case "search":
                 _shelves?.ShowShelves(search: true);
                 break;
+            case "library":
+                if (_library is { IsVisible: true, IsActive: true }) _library.HideLibrary();
+                else OpenLibrary(null, null, false);
+                break;
             case "copyLatest":
                 var latest = _store?.Items.FirstOrDefault(i => i.Kind == ItemKind.Image && i.IsOnShelf);
                 if (latest is not null && _store is not null) new ClipboardWriter(_store).Copy([latest]);
@@ -147,8 +163,11 @@ public partial class App : Application
             _tray?.Notify("Pegline", Loc.F("Shortcut unavailable: {0}", string.Join(", ", failed.Select(a => _settings.Current.GlobalShortcuts[a]))));
     }
 
+    private void OpenLibrary(LibraryScope? scope, ItemKind? kind, bool search) => _library?.ShowLibrary(scope, kind, search);
+
     internal void Quit()
     {
+        _library?.CloseForQuit();
         _shelves?.Close();
         Shutdown();
     }

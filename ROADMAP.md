@@ -25,10 +25,12 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] Paletten: kütüphaneye kaydet, sol/sağdakileri askıdan kaldır, dosyayı aç / Gezgin'de göster, son görseli kopyala, kaydedilmemişleri temizle, klasöre ekle/çıkar, etiket kaldır
 
 ## Faz 3 — Kütüphane penceresi
-- [ ] Izgara / liste, kenar çubuğu (Kütüphanem, Son kopyalar, Sabitlenenler, Düzenlenmemiş, Çöp), klasörler, etiketler
-- [ ] Otomatik kaydeden düzenleme paneli (ad, not, içerik), not oluşturma
-- [ ] Tür filtreleri (`Ctrl+0..3`), sıralama, arama, klavye sözleşmesi (library-keyboard)
-- [ ] Çöp: geri getir, kalıcı sil, `Ctrl+Z`, geçmişi temizle onayı
+- [x] Izgara / liste (sanallaştırılmış, 20 000 kayıt), kenar çubuğu (Kütüphanem, Favoriler, Düzenlenmemiş, Son kopyalar, Çöp), klasörler (bir alt seviye), etiketler, sayılar
+- [x] Otomatik kaydeden ayrıntı paneli (ad, içerik, not), klasör/etiket çıkarma, not oluşturma (`Ctrl+N`), klasör oluştur / yeniden adlandır / kaldır, etiket yeniden adlandır / kaldır
+- [x] Tür filtreleri (`Ctrl+0..3`), sıralama (yeni/eski/başlık/son kopyalanan/en iyi eşleşme), tarih filtresi, aksan duyarsız arama, klavye sözleşmesi (library-keyboard, 10 senaryo)
+- [x] Çöp: `S`/`Delete` geri alınabilir taşır, `Backspace`/`Ctrl+Z` geri alır, Çöp görünümünde tuşlar asla kalıcı silmez; geri getir, kalıcı sil, Çöp'ü boşalt, kaydedilmemişleri temizle onayı
+- [x] Kütüphanede önizleme (`Space`), Eylemler paleti (kapsam, görünüm, sıralama, klasör komutları), sağ tık menüsü; askılardan `L`, tepsi ve genel kısayol ile açılır
+- [ ] Alan adı ve çoklu etiket filtresi arayüzü (model hazır; Faz 7 filtre paneliyle)
 
 ## Faz 4 — Düzenleme ve aktarım
 - [ ] Klasöre sabitle (`Shift+P`, son kullanılanlar, `Ctrl+N`), Adlandır ve sabitle (`Alt+P`, toplu sıralı), etiket ekle (`Ctrl+Shift+T`)

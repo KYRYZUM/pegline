@@ -120,6 +120,7 @@ public sealed class LibraryStore : IDisposable
                 UpdatedAt = now,
                 RetainedAt = now,
                 CaptureRevision = Guid.NewGuid(),
+                HiddenFromShelf = true, // notes live in the Library, not on the shelves
             };
             Commit(tx => tx.Add(item));
             return item;

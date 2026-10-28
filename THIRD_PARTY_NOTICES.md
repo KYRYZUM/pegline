@@ -4,8 +4,8 @@
 
 The JSON files in `tests/Pegline.Core.Tests/Contracts/` are copied from
 [orkunisitmak/clipboardline-desktop](https://github.com/orkunisitmak/clipboardline-desktop)
-(`contracts/`). Pegline uses them as test fixtures to keep its shelf navigation, text
-deduplication, clipboard admission and history cleanup behavior equivalent. Pegline's
+(`contracts/`). Pegline uses them as test fixtures to keep its shelf navigation, Library keyboard
+behavior, text deduplication, clipboard admission and history cleanup equivalent. Pegline's
 source code is an independent implementation; it uses neither the Tendedero/ClipBoardLine
 name nor their icon.
 

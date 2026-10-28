@@ -1,5 +1,4 @@
-using System.Globalization;
-using System.Text;
+using Pegline.Core.Text;
 
 namespace Pegline.Core.Actions;
 
@@ -32,20 +31,9 @@ public static class CommandFilter
     }
 
     /// <summary>Case, width and diacritic insensitive form; Turkish dotless ı folds to i.</summary>
-    public static string Fold(string value)
-    {
-        var decomposed = value.Normalize(NormalizationForm.FormKD);
-        var builder = new StringBuilder(decomposed.Length);
-        foreach (var c in decomposed)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark) continue;
-            builder.Append(c == 'ı' ? 'i' : char.ToLowerInvariant(c));
-        }
-        return builder.ToString();
-    }
+    public static string Fold(string value) => Folding.Fold(value);
 
-    private static string[] Tokens(string value) =>
-        Fold(value).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+    private static string[] Tokens(string value) => Folding.Terms(value);
 
     private static string Normalized(string value) => string.Join(' ', Tokens(value));
 

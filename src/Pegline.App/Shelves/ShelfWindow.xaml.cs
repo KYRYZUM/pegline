@@ -8,6 +8,7 @@ using Pegline.App.Localization;
 using Pegline.Core.Actions;
 using Pegline.App.Platform;
 using Pegline.Core.Input;
+using Pegline.Core.Library;
 using Pegline.Core.Models;
 using Pegline.Core.Shelves;
 using Pegline.Core.Storage;
@@ -22,6 +23,7 @@ public partial class ShelfWindow : Window
     private readonly ClipboardWriter _writer;
     private readonly ForegroundTracker _foreground;
     private readonly Action _quit;
+    private readonly Action<LibraryScope?, ItemKind?, bool> _openLibrary;
     private readonly ShelfNavigator _nav = new();
     private readonly ThumbnailCache _thumbnails = new();
     private readonly Dictionary<ItemKind, ShelfRowView> _rows = [];
@@ -34,17 +36,19 @@ public partial class ShelfWindow : Window
     private bool _holdOpen;
     private bool _hiding;
     private DateTime _shownAt;
+    private bool _snapshot;
 
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
 
-    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit)
+    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary)
     {
         _store = store;
         _settings = settings;
         _writer = writer;
         _foreground = foreground;
         _quit = quit;
+        _openLibrary = openLibrary;
         InitializeComponent();
         _keymap = new Keymap(settings.Current.LocalShortcuts);
         _palette = ShelfPalette.For(settings.Current.Theme);
@@ -141,6 +145,23 @@ public partial class ShelfWindow : Window
         }
     }
 
+#if DEBUG
+    internal void ShowForSnapshot()
+    {
+        _snapshot = true;
+        (_work, _scale) = Win32.MonitorUnderCursor();
+        var width = (_work.Right - _work.Left) / _scale;
+        foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
+        _nav.SetItems(_store.Items);
+        _nav.Open();
+        Width = width;
+        Show();
+        Render();
+        Panel.Measure(new Size(width, double.PositiveInfinity));
+        Height = Panel.DesiredSize.Height + 2;
+    }
+#endif
+
     public void HideShelves(bool restoreFocus)
     {
         if (!IsVisible || _hiding) return;
@@ -162,6 +183,7 @@ public partial class ShelfWindow : Window
     /// <summary>Sizes the window to the monitor width and the panel's height, in device pixels.</summary>
     private void Place()
     {
+        if (_snapshot) return;
         var width = (_work.Right - _work.Left) / _scale;
         Panel.Measure(new Size(width, double.PositiveInfinity));
         var height = Math.Ceiling(Panel.DesiredSize.Height + 2);
@@ -428,7 +450,10 @@ public partial class ShelfWindow : Window
                 OpenPreview();
                 _preview?.BeginEditing();
                 return true;
-            case "library" or "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
+            case "library":
+                OpenLibrary(null, null, search: false);
+                return true;
+            case "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
                 ShowToast(Loc.T("Coming soon"));
                 return true;
             default:
