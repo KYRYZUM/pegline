@@ -1,98 +1,99 @@
-# Pegline yol haritası
+# Pegline roadmap
 
-Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-native karşılığı.
-`[x]` tamam · `[~]` kısmen · `[ ]` yapılacak
+Goal: a Windows-native counterpart of every user-facing feature in ClipBoardLine.
+`[x]` done · `[~]` partly done · `[ ]` to do
 
-## Faz 1 — Temel ve askılar
-- [x] .NET 10 çözümü, Core / App / Tests ayrımı, CI
-- [x] SQLite Library deposu (işlem + geri alma), içerik adresli medya deposu
-- [x] Pano dinleyici: metin / link / görsel (PNG, DIB), gizli ve geçmiş dışı kopyalar, kendi kopyaları; Gezgin'den kopyalanan görsel dosyaları, görselin yanında metin olan kopyalar (tarayıcı), alfası boş 32 bit DIB'ler
-- [x] Metin kimliği ile tekrar önleme
-- [x] Tür başına saklama süresi, saklanan kayıtların korunması, süresi dolanı Çöp'e taşıma
-- [x] Askı gezinme durum makinesi (13 davranış testi)
-- [x] Kısayol haritası: yeniden atama, devre dışı bırakma, varsayılan takma adlar
-- [x] Askı penceresi: kayan panel, kavisli ipler, mandallar, numaralı kartlar, sayfalama, tema / kart boyutu altyapısı
-- [x] Kopyala (`Enter` kapatır, `Ctrl+C` açık tutar), `Ctrl+Enter` önceki uygulamaya yapıştır, sabitle, askıdan indir + geri al (32), Çöp'e taşı
-- [x] Askı araması (`Shift+S`), satır göster/gizle, sadece sabitlenenler, seçim modu
-- [x] Genel kısayollar, tepsi, tek örnek, hoş geldin bildirimi
-- [x] Türkçe + İngilizce arayüz (diğer 7 dil Faz 9'da eklendi)
+## Phase 1 — Foundation and shelves
+- [x] .NET 10 solution split into Core / App / Tests, CI
+- [x] SQLite Library store (transactions + undo), content-addressed media store
+- [x] Clipboard listener: text / link / image (PNG, DIB), concealed and history-excluded copies, Pegline's own copies; image files copied in Explorer, copies with text next to the image (browsers), 32-bit DIBs with an empty alpha channel
+- [x] Duplicate prevention by text identity
+- [x] History length per kind, saved records kept, expired copies moved to Trash
+- [x] Shelf navigation state machine (13 behavior tests)
+- [x] Keymap: remapping, disabling, default aliases
+- [x] Shelf window: sliding panel, sagging ropes, pegs, numbered cards, paging, theme / card size groundwork
+- [x] Copy (`Enter` closes, `Ctrl+C` keeps the shelves open), `Ctrl+Enter` pastes into the previous app, pin, take down + undo (32 steps), move to Trash
+- [x] Shelf search (`Shift+S`), show / hide rows, pinned only, select mode
+- [x] Global shortcuts, tray, single instance, welcome notification
+- [x] Turkish + English interface (the other seven languages arrived in Phase 9)
 
-## Faz 2 — Önizleme ve Eylemler
-- [x] Space ile çerçevesiz önizleme (görsel / metin / link), oklarla askılar arası yerinde gezinme
-- [x] Görsel zoom (%100–400, imleç sabit), sürükleyerek kaydırma, çift tıkla sıfırlama
-- [x] Metin düzenleme (`E`, otomatik kayıt, `Ctrl+Enter` bitir), link tarayıcıda aç (`Ctrl+O`)
-- [x] Eylemler paleti (`Ctrl+K`): bağlama duyarlı, Türkçe/aksansız aranabilir, kısayolları ve devre dışı nedenini gösterir; henüz yapılmamış eylemler "Yakında" olarak görünür
-- [x] Paletten: kütüphaneye kaydet, sol/sağdakileri askıdan kaldır, dosyayı aç / Gezgin'de göster, son görseli kopyala, kaydedilmemişleri temizle, klasöre ekle/çıkar, etiket kaldır
+## Phase 2 — Preview and Actions
+- [x] Borderless preview with Space (image / text / link), arrow keys move between cards in place
+- [x] Image zoom (100–400%, anchored at the pointer), drag to pan, double-click to reset
+- [x] Text editing (`E`, saves automatically, `Ctrl+Enter` finishes), open a link in the browser (`Ctrl+O`)
+- [x] Actions palette (`Ctrl+K`): context-aware, searchable with or without Turkish accents, shows shortcuts and why an action is unavailable; unfinished actions appear as "Coming soon"
+- [x] From the palette: save to Library, remove the cards to the left / right, open the file / show it in Explorer, copy the latest image, clear unsaved copies, add to / remove from a folder, remove a tag
 
-## Faz 3 — Kütüphane penceresi
-- [x] Izgara / liste (sanallaştırılmış, 20 000 kayıt), kenar çubuğu (Kütüphanem, Favoriler, Düzenlenmemiş, Son kopyalar, Çöp), klasörler (bir alt seviye), etiketler, sayılar
-- [x] Otomatik kaydeden ayrıntı paneli (ad, içerik, not), klasör/etiket çıkarma, not oluşturma (`Ctrl+N`), klasör oluştur / yeniden adlandır / kaldır, etiket yeniden adlandır / kaldır
-- [x] Tür filtreleri (`Ctrl+0..3`), sıralama (yeni/eski/başlık/son kopyalanan/en iyi eşleşme), tarih filtresi, aksan duyarsız arama, klavye davranış testleri
-- [x] Çöp: `S`/`Delete` geri alınabilir taşır, `Backspace`/`Ctrl+Z` geri alır, Çöp görünümünde tuşlar asla kalıcı silmez; geri getir, kalıcı sil, Çöp'ü boşalt, kaydedilmemişleri temizle onayı
-- [x] Kütüphanede önizleme (`Space`), Eylemler paleti (kapsam, görünüm, sıralama, klasör komutları), sağ tık menüsü; askılardan `L`, tepsi ve genel kısayol ile açılır
-- [x] Alan adı ve çoklu etiket filtresi arayüzü (Faz 7 filtre paneli)
+## Phase 3 — Library window
+- [x] Grid / list (virtualized, 20,000 records), sidebar (My library, Favorites, Unorganized, Recent copies, Trash), folders (one level of subfolders), tags, counts
+- [x] Auto-saving details pane (name, content, note), remove from folder / tag, new note (`Ctrl+N`), create / rename / remove folders, rename / remove tags
+- [x] Kind filters (`Ctrl+0..3`), sorting (newest / oldest / title / last copied / best match), date filter, accent-insensitive search, keyboard behavior tests
+- [x] Trash: `S` / `Delete` move items there recoverably, `Backspace` / `Ctrl+Z` undo, keys never delete permanently in the Trash view; restore, delete permanently, empty Trash, confirmation before clearing unsaved copies
+- [x] Preview in the Library (`Space`), Actions palette (scope, view, sort, folder commands), context menu; opened with `L` from the shelves, from the tray and with a global shortcut
+- [x] Domain and multi-tag filter interface (the Phase 7 filter panel)
 
-## Faz 4 — Düzenleme ve aktarım
-- [x] Klasöre sabitle (`Shift+P`, son kullanılanlar, `Ctrl+N`, klasörsüz sabitle), Adlandır ve sabitle (`Alt+P`, toplu sıralı, arada silineni atlar), etiket ekle / oluştur (`Ctrl+Shift+T`); kardeş klasör adları benzersiz
-- [x] Dışa aktar (`Ctrl+Shift+E`, ad çakışmasında " (2)", üzerine yazmaz, başarısızları sayar), sürükle-bırak (görsel dosya; `Alt` ile metin/link .txt/.url dosyası; seçimin tamamı), kütüphanede kenar çubuğu klasörüne sürükleme
-- [x] Yapıştırma hedefi doğrulaması (UI Automation: parola alanı / değişmiş hedef reddi; yalnızca kimlik ve yetenek okunur)
-- [ ] Canlı kabul: sürükle-bırak hedefleri (Gezgin, tarayıcı, Office) ve gerçek uygulamalarda yapıştırma doğrulaması elle denenecek
+## Phase 4 — Organizing and transfer
+- [x] Pin to folder (`Shift+P`, recent folders, `Ctrl+N`, pin without a folder), Name and pin (`Alt+P`, one by one for a batch, skips items deleted meanwhile), add / create tags (`Ctrl+Shift+T`); sibling folder names are unique
+- [x] Export (`Ctrl+Shift+E`, " (2)" on a name clash, never overwrites, counts failures), drag and drop (images as files; text / links as .txt / .url files when the drag starts with `Ctrl`; the whole selection), drag onto a sidebar folder in the Library
+- [x] Paste target check (UI Automation: refuses password fields and changed targets; reads only identity and capabilities)
+- [x] Live acceptance: drag-and-drop targets and pasting into real apps tried by hand (0.1.0 test round; fixes in 0.1.1)
 
-## Faz 5 — Görsel işaretleme ve kırpma
-- [x] Kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin (yerinde yazma, çift tıkla düzenleme); seç/taşı/boyutlandır; 8 renk, 4 kalınlık, dolgu, 4 yazı boyutu; `Shift` ile düz çizgi / kare
-- [x] Orijinali bozmayan kırpma (tutamaçlar, taşıma, sıfırlama; `C` doğrudan kırpma), 60 adım geri al / yinele, `Ctrl+S`, `Ctrl+Enter`/`Esc` kaydet ve bitir, işaretler sonradan düzenlenebilir vektör olarak saklanır, tam çözünürlükte PNG
-- [x] Önizlemede `Ctrl+Z` / `Ctrl+Shift+Z` ile oturum içi düzenleme geçmişi; yakınlaştırma (%100–400) ve `Space`+sürükle kaydırma
-- [ ] Canlı kabul: fare ve klavyeyle uçtan uca işaretleme elle denenecek
+## Phase 5 — Image markup and crop
+- [x] Pen, highlighter, rectangle, ellipse, arrow, line, text (typed in place, double-click to edit); select / move / resize; 8 colors, 4 stroke widths, fill, 4 text sizes; `Shift` for straight lines / squares
+- [x] Non-destructive crop (handles, moving, reset; `C` opens straight into crop), 60 steps of undo / redo, `Ctrl+S`, `Ctrl+Enter` / `Esc` save and finish, marks stored as editable vectors, full-resolution PNG
+- [x] In the preview, `Ctrl+Z` / `Ctrl+Shift+Z` step through this session's edits; zoom (100–400%) and `Space`+drag panning
+- [x] Live acceptance: end-to-end markup with mouse and keyboard tried by hand (style panel fixed in 0.1.1)
 
-## Faz 6 — Yakalama kaynakları ve OCR
-- [x] Ekran görüntüsü yakalama (`Ctrl+Alt+A`, tepsi): imleçteki ekran, tam çözünürlük, doğrudan kırpma ile açılır
-- [x] Windows Ekran görüntüleri klasörü (taşınmış olsa da) ve en fazla 3 izlenen klasör (tepsiden ekle / kaldır); panoya da düşen ekran görüntüsü tek kayıt olur
-- [x] Yerel OCR (Windows.Media.Ocr; Türkçe yoksa İngilizce / profil dilleri), arka plan kuyruğu, düzenlenen görsel yeniden okunur, görseldeki yazıyı kopyala (`Ctrl+Shift+C`), OCR metni askı ve Kütüphane aramasında
-- [x] Yeni görselde askıları göster (tam ekran uygulama / oyun önündeyken asla)
-- [ ] Canlı kabul: `Ctrl+Alt+A` ekran yakalama elle denenecek
+## Phase 6 — Capture sources and OCR
+- [x] Screen capture (`Ctrl+Alt+A`, tray): the display under the pointer, full resolution, opens straight into crop
+- [x] The Windows Screenshots folder (even when relocated) and up to three watched folders (Settings › Sources); a screenshot that also lands on the clipboard becomes one record
+- [x] Local OCR (Windows.Media.Ocr; English or the profile languages when Turkish is unavailable), background queue, edited images are read again, copy image text (`Ctrl+Shift+C`, also hung on the Texts shelf), OCR text in shelf and Library search
+- [x] New copies bring the shelves down for a moment (never in front of a full-screen app or game unless allowed)
+- [x] Live acceptance: `Ctrl+Alt+A`, OCR and watched folders tried by hand
 
-## Faz 7 — Görsel arama
-- [x] MobileCLIP-S2 ONNX (Microsoft.ML.OnnxRuntime, CPU): sabitlenmiş dışa aktarım (dosya başına boyut + SHA-256), CLIP BPE tokenizer, referansla aynı letterbox + karo politikası ve eşleşme eşikleri; doğrulama: kırmızı daire / mavi kare sıralaması, kosinüsler referansla ±0.01
-- [x] Arka plan dizinleme: tek çekirdek, düşük öncelik, tam ekran uygulama önündeyken bekler, boşta model bellekten çıkar; görsel başına ~80 ms; düzenlenen / silinen görselin vektörü atılır, eski sonuç asla gösterilmez
-- [x] Kütüphanede birleşik / yalnızca metin / yalnızca görsel arama (kapsam içinde sıralama, "En iyi eşleşme"de metin eşleşmeleri önce), filtre paneli: tarih, alan adı, etiketler, sabitlenenler; tür ve klasör mevcut çiplerden / kenar çubuğundan
-- [ ] Canlı kabul: gerçek kütüphanede görsel arama elle denenecek
+## Phase 7 — Visual search
+- [x] MobileCLIP-S2 ONNX (Microsoft.ML.OnnxRuntime, CPU): pinned export (size + SHA-256 per file), CLIP BPE tokenizer, the reference letterbox + tiling policy and match thresholds; checks: red circle / blue square ranking, cosines within ±0.01 of the reference
+- [x] Background indexing: one core, low priority, waits while a full-screen app is in front, unloads the model when idle; ~80 ms per image; vectors of edited / deleted images are dropped, stale results are never shown
+- [x] Combined / text-only / visual-only search in the Library (ranked within the scope, text matches first under "Best match"), filter panel: date, domain, tags, pinned; kind and folder from the existing chips / sidebar
+- [x] Live acceptance: visual search in a real Library tried by hand (filter panel fixed in 0.1.1)
 
-## Faz 8 — Linkler ve kayıtlar
-- [x] Link zenginleştirme: başlık, site, yazar, küçük resim (Open Graph / `<title>`, YouTube oEmbed); yalnızca herkese açık HTTPS, her çözülen adres ve yönlendirme yeniden denetlenir (DNS rebinding yok), boyut / süre sınırı, jeton / imza / kimlik bilgisi içeren linkler hiç istenmez; en fazla 2 eşzamanlı istek, başarısızlar 1 saat sonra yeniden; "Link önizlemesini yenile"; tepsiden kapatılabilir
-- [x] MP4/MOV kayıtları: Gezgin'den kopyala, Kütüphaneye sürükle-bırak, Ekran Alıntısı Aracı'nın "Screen Recordings" klasörü ve izlenen klasörler (yazma bitene kadar beklenir); kapak karesi ve süre; önizlemede oynatma (`K`, sarma çubuğu)
-- [x] Videoyu kes (Windows.Media.Editing): orijinal hiç değişmez, kesilen parça yeni dosya; `I`/`O` başlangıç/bitiş, "Videonun tamamını kullan" ile geri dönüş; kopyala / sürükle / dışa aktar kesilmiş videoyu adıyla verir
-- [x] Kütüphanem boşken "Son kopyaları göster" düğmesi
-- [ ] Canlı kabul: gerçek ekran kaydıyla oynatma ve kesme penceresi elle denenecek
+## Phase 8 — Links and recordings
+- [x] Link enrichment: title, site, author, thumbnail (Open Graph / `<title>`, YouTube oEmbed); public HTTPS only, every resolved address and redirect is checked again (no DNS rebinding), size / time limits, links carrying tokens, signatures or credentials are never fetched; at most 2 requests at once, failures retried after an hour; "Refresh link preview"; can be turned off
+- [x] MP4/MOV recordings: copy from Explorer, drop on the Library, the Snipping Tool's "Screen Recordings" folder and watched folders (waits until writing finishes); poster frame and length; playback in the preview (`K`, seek bar)
+- [x] Trim video (Windows.Media.Editing): the original never changes, the trimmed part is a new file; `I` / `O` set start / end, "Use the whole video" goes back; copy / drag / export hand over the trimmed video under its name
+- [x] "View recent copies" button when My library is empty
+- [x] Live acceptance: playback and the trim window tried by hand with a real screen recording
 
-## Faz 9 — Ayarlar ve kişiselleştirme
-- [x] Ayarlar penceresi (`Ctrl+,`, tepsi, Eylemler paleti): Genel, Geçmiş, Kaynaklar, Klavye kısayolları, Güncellemeler, Hakkında; her denetim tepsiyle aynı ayar yolunu kullanır, pencereyi açmak hiçbir şey yazmaz
-- [x] Kısayol kaydedici: genel kısayollar kayıt sırasında bırakılır, Ctrl/Alt/Win zorunlu, birbirleriyle ve Windows'taki başka uygulamalarla çakışma uyarısı; gezinme kısayolları aynı yerde (askı / Kütüphane / önizleme / işaretleme / metin düzenleme) çakışamaz; kapat, varsayılana dön, tümünü sıfırla; Kütüphane için `Ctrl+Alt+L` hazır düğmesi
-- [x] Yumuşak renkler / nötr cam ve kart boyutu askılara anında uygulanır; görünen askılar (en az biri açık); sesler (asılma ve indirme için kod içinde üretilen kısa sesler); oturum açılışında başlat (kullanıcı Run kaydı, Windows'tan okunur, yalnızca kurulu sürümde)
-- [x] Askıları indirme: imleç ekranın üst kenarında 350 ms bekleyince (varsayılan kapalı, düğme basılıyken ya da üstte görev çubuğu varken asla), yeni bir şey asılınca 2,5 sn göz atma (klavyeyi almaz, imleç üzerindeyken açık kalır, tıklayınca normal askıya döner); tam ekran uygulamaların üzerinde yalnızca izin verilirse
-- [x] 9 dil (en, tr, es, fr, pt-BR, az, zh-Hans, ja, ko) ve sistem dili (pt → pt-BR, zh-CN/SG → zh-Hans); 466 metnin hepsi her dilde, yer tutucular denetlendi; dil değişince "Pegline'ı yeniden aç"
-- [ ] Canlı kabul: Ayarlar penceresi, kısayol kaydedici ve üst kenardan açılma elle denenecek
+## Phase 9 — Settings and personalization
+- [x] Settings window (`Ctrl+,`, tray, Actions palette, the button on the shelves): General, History, Sources, Keyboard shortcuts, Updates, About; every control writes through the same settings path as the tray, and opening the window writes nothing
+- [x] Shortcut recorder: global shortcuts are released while recording, Ctrl/Alt/Win required, warnings for clashes with each other and with other apps in Windows; navigation shortcuts cannot clash within one place (shelves / Library / preview / markup / text editing); turn off, back to default, reset all; a ready-made `Ctrl+Alt+L` button for the Library
+- [x] Soft colors / neutral glass and card size apply to the shelves at once; visible shelves (at least one stays on); sounds (short tones generated in code for hanging and taking down); start at sign-in (the user's Run key, read back from Windows, installed app only)
+- [x] Bringing the shelves down: when the pointer rests at the top edge for 350 ms (off by default; never while a button is held or with the taskbar at the top), a 2.5 s peek when something new hangs (does not take the keyboard, stays while the pointer is over it, a click turns it into ordinary shelves); over full-screen apps only when allowed
+- [x] 9 languages (en, tr, es, fr, pt-BR, az, zh-Hans, ja, ko) and the system language (pt → pt-BR, zh-CN/SG → zh-Hans); every string in every language, placeholders checked by tests; changing the language offers "Reopen Pegline"
+- [x] Live acceptance: Settings window, shortcut recorder and top-edge reveal tried by hand
 
-## Faz 10 — Dağıtım
-- [x] Kurulum paketi (Velopack): `PeglineApp-win-Setup.exe`, taşınabilir zip, tam ve delta güncelleme paketleri; yönetici izni yok; kurulum klasörü (`PeglineApp`) kütüphane klasöründen (`Pegline`) ayrı, kaldırma kütüphaneye dokunmaz ve oturum açılış kaydını siler
-- [x] GitHub Releases'tan güncelleme: açılışta ve saatte bir kontrol (kapatılabilir), bildirim ve tepsi menüsü, indirme ve kurulum yalnızca kullanıcı seçince, kurulumdan önce açık düzenlemeler kaydedilir; gizli depo için DPAPI ile şifrelenmiş GitHub jetonu; Eylemler paletinde "Güncellemeleri denetle" / "Güncellemeyi kur"
-- [x] `v*` etiketiyle sürüm iş akışı (test, model hazırlama, delta, yayın); yerel `scripts/pack.ps1`
-- [x] Logo: uygulama / kurulum ikonu (koyu yuvarlak karo), şeffaf tepsi simgesi, Ayarlar ve kurulum ekranında logo
-- [ ] Kod imzalama sertifikası (şimdilik imzasız; SmartScreen uyarısı)
-- [~] Canlı kabul: kurulum ve kaldırma denendi (0.1.0); 0.1.0 → 0.1.1 güncellemesi denenecek
+## Phase 10 — Distribution
+- [x] Installer (Velopack): `PeglineApp-win-Setup.exe`, portable zip, full and delta update packages; no administrator rights; the install folder (`PeglineApp`) is separate from the Library folder (`Pegline`), uninstalling never touches the Library and removes the sign-in entry
+- [x] Updates from GitHub Releases: a check at launch and every hour (can be turned off), notification and tray menu, download and install only when the user chooses, open edits saved before installing; a DPAPI-encrypted GitHub token for the private repository; "Check for updates" / "Install update" in the Actions palette
+- [x] Release workflow on `v*` tags (tests, models, delta, publish); local `scripts/pack.ps1`
+- [x] Logo: app / installer icon (dark rounded tile), transparent tray icon, logo in Settings and on the installer splash
+- [ ] Code-signing certificate (unsigned for now; SmartScreen warning)
+- [~] Live acceptance: install and uninstall tried (0.1.0); in-app update to be confirmed
 
-## 0.1.1 — İlk deneme turundan düzeltmeler
-- [x] Askıdaki yazılar keskin: gölge kartın içeriğinden ayrı çizilir, metin ve link kartları dik asılır (yalnızca görseller eğik)
-- [x] Kartlar ekran genişliğine göre sığar (9 kart sınırı kalktı), kart boyutuna uyar ve ipe eşit aralıkla yayılır; satırlar aynı sütunları paylaşır
-- [x] Yeniden gösterilen satır yerleşim bittikten sonra pencereyi bir kez daha boyutlar (yarım kalan satır)
-- [x] `Ctrl`+tık ile ardışık olmayan ve farklı türden (görsel + link) kartlar birlikte seçilir
-- [x] Metin / link kartları `Ctrl` basılıyken sürüklenince Gezgin'e .txt / .url dosyası olarak iner (Gezgin `Alt`'ı "kısayol oluştur" sayıp reddediyordu)
-- [x] İşaretleme stil paneli: kalınlık, dolgu ve yazı boyutu tek panelde, açık kalır (eski menü odak değişiminde hemen kapanıyordu)
-- [x] Görseldeki yazıyı kopyala, metni Metinler askısına da asar
-- [x] Kütüphane filtre paneli açıkken araç çubuğu yenilense de yerinde kalır; seçili tarih / seçenek çipi vurgu rengiyle görünür
-- [x] "Yeni bir şey kopyalanınca": her kopyada insin (varsayılan) / yalnızca görsellerde / inmesin; eski açık-kapalı ayarı bir kez taşınır
-- [x] Askıların sağ üstünde Kütüphane ve Ayarlar düğmeleri; Ayarlar'daki logo yüksek kaliteli ölçeklenir; Güncellemeler metinleri Türkçeleşti
+## 0.1.1 — Fixes from the first hands-on round
+- [x] Crisp text on the shelves: the shadow is drawn apart from the card's content, text and link cards hang straight (only images hang askew)
+- [x] Cards fit the screen width (no more nine-card limit), follow the card size and spread evenly along the rope; rows share the same columns
+- [x] A row shown again resizes the window once more after layout (no half-hidden row)
+- [x] `Ctrl`+click selects cards that are not next to each other and of different kinds (image + link) together
+- [x] Text / link cards dragged with `Ctrl` held land in Explorer as .txt / .url files (Explorer read `Alt` as "create shortcut" and refused the drop)
+- [x] Markup style panel: stroke width, fill and text size in one panel that stays open (the old menu closed at once on a focus change)
+- [x] Copy image text also hangs the text on the Texts shelf
+- [x] The Library filter panel stays in place when the toolbar refreshes; the chosen date / option chip uses the accent color
+- [x] "When something new is copied": bring the shelves down for every copy (default) / for images only / never; the old on-off setting is carried over once
+- [x] Library and Settings buttons at the top right of the shelves; the logo in Settings is scaled in high quality; the Updates texts are fully translated
 
-## 0.1.2 — Lisans
-- [x] Pegline © 2026 Enes Sarı, tüm hakları saklı (`LICENSE`, Hakkında, dosya özellikleri)
-- [x] Başka projeden kopyalanan test dosyaları kaldırıldı; aynı davranışlar kendi testleriyle (askı, Kütüphane klavyesi, kopyalama kuralları, geçmiş temizleme) denetleniyor
-- [x] Üçüncü taraf bildirimleri yalnızca uygulamada gerçekten kullanılan bileşenleri listeler
+## 0.1.2 — License
+- [x] Pegline © 2026 Enes Sarı, all rights reserved (`LICENSE`, About, file properties)
+- [x] Test files copied from another project removed; the same behaviors are covered by Pegline's own tests (shelves, Library keyboard, capture rules, history cleanup)
+- [x] Third-party notices list only the components the app actually uses
+- [x] The visual search models are downloaded from this repository's own `models-mobileclip-s2-v1` release
