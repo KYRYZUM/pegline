@@ -6,7 +6,10 @@
   "checkpointSHA256": "063a87b2a846791bcffafa9f7670ec3968d572a3e7f99e5e4b14348006631d6f",
   "tokenizerRevision": "48faa0fea4b08d74188b3841771aca6ff2c92852",
   "archive": {
-    "url": "https://github.com/orkunisitmak/clipboardline-desktop/releases/download/models-mobileclip-s2-v1/ClipBoardLine-MobileCLIP-S2-ONNX-v1.zip",
+    "repository": "KYRYZUM/pegline",
+    "release": "models-mobileclip-s2-v1",
+    "asset": "Pegline-MobileCLIP-S2-ONNX-v1.zip",
+    "url": "https://github.com/KYRYZUM/pegline/releases/download/models-mobileclip-s2-v1/Pegline-MobileCLIP-S2-ONNX-v1.zip",
     "sha256": "0d1227faa4c9cbfbcbc1fb2391369195e9a52a364b3d94ddb543c3e9ff0baa07",
     "bytes": 401283648
   },

@@ -3,9 +3,11 @@
   Prepares the offline visual search models (Apple MobileCLIP-S2, ONNX FP32) in assets\CLIP.
 
 .DESCRIPTION
-  Downloads the pinned archive, checks its size and SHA-256 before extracting, then checks every file against
-  src\Pegline.Core\Search\search-model-config.json. The models are bundled at build time; the running app never
-  downloads them or sends queries anywhere. Builds without them work; visual search is then unavailable.
+  Downloads the pinned archive from Pegline's own "models-mobileclip-s2-v1" release, checks its size and SHA-256
+  before extracting, then checks every file against src\Pegline.Core\Search\search-model-config.json. While the
+  repository is private the download goes through the GitHub CLI (signed in locally, GH_TOKEN in Actions). The
+  models are bundled at build time; the running app never downloads them or sends queries anywhere. Builds without
+  them work; visual search is then unavailable.
 
   -Check only verifies an existing assets\CLIP folder.
 #>
@@ -37,8 +39,13 @@ $work = Join-Path ([IO.Path]::GetTempPath()) ("pegline-models-" + [guid]::NewGui
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $archive = Join-Path $work 'models.zip'
-    Write-Host "Downloading $($config.archive.url) ($([math]::Round($config.archive.bytes / 1MB)) MB)…"
-    Invoke-WebRequest -Uri $config.archive.url -OutFile $archive -UseBasicParsing
+    Write-Host "Downloading $($config.archive.asset) from $($config.archive.repository) ($([math]::Round($config.archive.bytes / 1MB)) MB)…"
+    if (Get-Command gh -ErrorAction SilentlyContinue) {
+        gh release download $config.archive.release --repo $config.archive.repository --pattern $config.archive.asset --output $archive
+        if ($LASTEXITCODE -ne 0) { throw 'The GitHub CLI could not download the models. Sign in with "gh auth login".' }
+    } else {
+        Invoke-WebRequest -Uri $config.archive.url -OutFile $archive -UseBasicParsing
+    }
     if ((Get-Item $archive).Length -ne $config.archive.bytes) { throw 'The archive has the wrong size.' }
     if ((Get-FileHash $archive -Algorithm SHA256).Hash -ne $config.archive.sha256.ToUpperInvariant()) { throw 'The archive differs from the pinned one.' }
 
