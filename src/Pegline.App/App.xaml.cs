@@ -100,6 +100,24 @@ public partial class App : Application
 
 #if DEBUG
         // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--snapshot", var markup, var shot] && markup.StartsWith("markup", StringComparison.Ordinal))
+        {
+            var source = _store.Items.FirstOrDefault(i => i is { Kind: ItemKind.Image, Recording: false, IsTrashed: false });
+            var editor = source is null ? null : Markup.MarkupWindow.Create(_store, source, ShelfPalette.For(_settings.Current.Theme), new Pegline.Core.Input.Keymap(), markup == "markup-crop", out _);
+            if (editor is not null)
+            {
+                editor.DiscardOnClose = true;
+                editor.Width = 1316;
+                editor.Height = 896;
+                ((FrameworkElement)editor.Content).Measure(new Size(1316, 896));
+                ((FrameworkElement)editor.Content).Arrange(new Rect(0, 0, 1316, 896));
+                editor.UpdateLayout();
+                if (markup == "markup-crop") editor.CropForSnapshot();
+                else editor.SeedForSnapshot(Path.ChangeExtension(shot, ".export.png"));
+            }
+            DevSnapshot.CaptureDetached(editor, new Size(1316, 896), shot, () => Shutdown());
+            return;
+        }
         if (e.Args is ["--snapshot", var picker, var image] && picker.StartsWith("picker-", StringComparison.Ordinal))
         {
             var palette = ShelfPalette.For(_settings.Current.Theme);

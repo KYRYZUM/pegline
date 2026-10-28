@@ -11,18 +11,12 @@ namespace Pegline.App.Organize;
 /// <summary>One choice in a <see cref="PickerWindow"/>. <see cref="Key"/> identifies it across reloads.</summary>
 internal sealed record PickerRow(object? Key, string Title, string Glyph, int Depth = 0);
 
-/// <summary>A picker that opens centered over the shelves, a preview or the Library.</summary>
-internal abstract class OrganizerWindow : FloatingWindow
-{
-    public abstract void Present(Window parent);
-}
-
 /// <summary>
 /// The keyboard picker behind "Pin to folder…" and "Add tag…": a search field over a short list.
 /// Typing filters, ↑/↓ move, Enter confirms the selected row, Esc (or clicking elsewhere) changes nothing.
 /// An optional create mode turns the field into a name input; the secondary button (Ctrl+N) usually starts it.
 /// </summary>
-internal sealed class PickerWindow : OrganizerWindow
+internal sealed class PickerWindow : HostedWindow
 {
     private const double SurfaceWidth = 520;
     private const double SurfaceHeight = 420;

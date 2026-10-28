@@ -11,6 +11,7 @@ using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Pegline.App.Actions;
 using Pegline.App.Localization;
+using Pegline.App.Markup;
 using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Preview;
@@ -54,7 +55,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private bool _renderQueued;
     private PreviewWindow? _preview;
     private ActionPalette? _actions;
-    private OrganizerWindow? _picker;
+    private HostedWindow? _picker;
     private readonly Organizer _organizer;
     private bool _quitting;
 
@@ -609,7 +610,10 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "folder" or "name" or "tag" or "export":
                 Organize(action, ids);
                 break;
-            default: // copyOCR, markup, crop
+            case "markup" or "crop":
+                if (ids is [var image]) OpenMarkup(image, action == "crop");
+                break;
+            default: // copyOCR
                 Notify(Loc.T("Coming soon"));
                 break;
         }
@@ -632,7 +636,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             return;
         }
         var captured = items.Select(i => i.Id).ToList();
-        OrganizerWindow? picker;
+        HostedWindow? picker;
         if (action == "name")
         {
             var naming = _organizer.NameAndPin(_palette, captured, Notify);
@@ -645,17 +649,47 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             picker = naming;
         }
         else picker = action == "folder" ? _organizer.PinToFolder(_palette, captured, Notify) : _organizer.AddTag(_palette, captured, Notify);
-        if (picker is null) return;
-        picker.Owner = parent;
-        picker.Closed += (_, _) =>
+        if (picker is not null) PresentChild(picker, parent);
+    }
+
+    /// <summary>Shows a picker or the image editor over <paramref name="parent"/> and returns focus to it afterwards.</summary>
+    private void PresentChild(HostedWindow child, Window parent)
+    {
+        child.Owner = parent;
+        child.Closed += (_, _) =>
         {
             _picker = null;
-            if (_quitting || !picker.RestoreParentFocus || !parent.IsVisible) return;
+            if (_quitting) return;
+            if (child is MarkupWindow) SyncPreview();
+            if (!child.RestoreParentFocus || !parent.IsVisible) return;
             parent.Activate();
             if (parent == this) FocusGrid();
         };
-        _picker = picker;
-        picker.Present(parent);
+        _picker = child;
+        child.Present(parent);
+    }
+
+    /// <summary>Image markup (M) or crop (C).</summary>
+    private void OpenMarkup(Guid id, bool crop)
+    {
+        if (_picker is not null || !_inspector.Flush()) return;
+        if (_store.Find(id) is not { } item) return;
+        var editor = MarkupWindow.Create(_store, item, _palette, _model.Keymap, crop, out var error);
+        if (editor is null)
+        {
+            Notify(error ?? Loc.T("Select one image first"));
+            return;
+        }
+        editor.Saved += (_, message) => Notify(message);
+        PresentChild(editor, _preview is { IsOpen: true, IsActive: true } preview ? preview : this);
+    }
+
+    private bool StepImageEdit(Guid id, bool redo)
+    {
+        if (_store.Find(id) is not { Kind: ItemKind.Image }) return false;
+        var done = redo ? _store.RedoImageEdit(id) : _store.UndoImageEdit(id);
+        Notify(Loc.T(done ? (redo ? "Redone" : "Undone") : (redo ? "Nothing to redo" : "Nothing to undo")));
+        return true;
     }
 
     /// <summary>Drags the item, or the whole selection when the item is part of it.</summary>
@@ -884,7 +918,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
-        "folder", "name", "tag", "export",
+        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo",
         "menu.openScreenshotsFolder", "menu.resetZoom",
     ];
 
@@ -921,6 +955,8 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             HasItems = _model.Ids.Count > 0,
             HasLatestImage = _store.Items.Any(i => i.Kind == ItemKind.Image && i.IsOnShelf),
             CanUndoLibraryTrash = _store.CanUndoTrash,
+            CanUndoMarkup = single is { Kind: ItemKind.Image } && _store.CanUndoImageEdit(single.Id),
+            CanRedoMarkup = single is { Kind: ItemKind.Image } && _store.CanRedoImageEdit(single.Id),
             IsTextEditing = _preview?.IsTextEditing ?? false,
             ActiveFavorites = _model.ShowingPinnedOnly,
             GlobalToggleHint = shortcuts.GetValueOrDefault("toggle", ""),
@@ -992,6 +1028,10 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 _store.RemoveTag(ids, id[ActionCatalog.RemoveTagPrefix.Length..]);
             else if (id is "folder" or "name" or "tag" or "export")
                 Organize(id, ids);
+            else if (id is "markup" or "crop")
+            {
+                if (ids is [var image]) OpenMarkup(image, id == "crop");
+            }
             else if (origin == ActionOrigin.LibraryPreview && _preview is { IsOpen: true } preview)
             {
                 switch (id)
@@ -1027,6 +1067,9 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         switch (action)
         {
             case "newNote": OnRequested("newNote", []); break;
+            case "markupUndo" or "markupRedo":
+                if (Targets(ActionOrigin.Library) is [{ Kind: ItemKind.Image } edited]) StepImageEdit(edited.Id, action == "markupRedo");
+                break;
             case "newFolder": NewFolder(null); break;
             case "newSubfolder" or "renameFolder" or "removeFolder":
                 if (_store.Folders.FirstOrDefault(f => f.Id == scope.FolderId) is not { } folder) break;
@@ -1166,13 +1209,15 @@ internal sealed class LibraryWindow : Window, IPreviewHost
 
     private void SyncPreview()
     {
+        // The image editor owns the preview's item until it closes; the preview catches up afterwards.
+        if (_picker is MarkupWindow) return;
         if (_preview is not { IsOpen: true } preview) return;
         if (_model.FocusedItem is not { } item)
         {
             preview.ForceClose();
             return;
         }
-        if (preview.Item?.Id == item.Id) preview.Refresh(item, PositionOf(item.Id));
+        if (preview.Item?.Id == item.Id && !preview.NeedsReload(item)) preview.Refresh(item, PositionOf(item.Id));
         else if (!preview.Present(item, PositionOf(item.Id), Placement())) preview.ForceClose();
     }
 
@@ -1204,7 +1249,18 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "actions":
                 ShowActions(ActionOrigin.LibraryPreview);
                 return true;
-            case "library" or "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
+            case "folder" or "name" or "tag" or "export":
+                Organize(action, [current.Id]);
+                return true;
+            case "markup" or "crop":
+                OpenMarkup(current.Id, action == "crop");
+                return true;
+            case "markupUndo" or "markupRedo":
+                return StepImageEdit(current.Id, action == "markupRedo");
+            case "library":
+                FocusGrid();
+                return true;
+            case "copyOCR":
                 Notify(Loc.T("Coming soon"));
                 return true;
             default:

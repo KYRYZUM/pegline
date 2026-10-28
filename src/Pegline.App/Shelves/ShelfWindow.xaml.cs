@@ -38,7 +38,7 @@ public partial class ShelfWindow : Window
     private bool _holdOpen;
     private bool _hiding;
     private DateTime _shownAt;
-    private bool _snapshot;
+    private bool _snapshot = false; // set only by the debug snapshot mode
 
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
@@ -460,7 +460,10 @@ public partial class ShelfWindow : Window
             case "folder" or "name" or "tag" or "export":
                 Organize(action, ActionOrigin.Line);
                 return true;
-            case "copyOCR" or "markup" or "crop":
+            case "markup" or "crop":
+                OpenMarkup(action == "crop");
+                return true;
+            case "copyOCR":
                 ShowToast(Loc.T("Coming soon"));
                 return true;
             default:

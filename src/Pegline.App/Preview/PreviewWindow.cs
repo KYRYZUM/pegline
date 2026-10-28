@@ -135,14 +135,19 @@ internal sealed class PreviewWindow : FloatingWindow
 
     public ClipItem? Item => _item;
 
+    /// <summary>True when the image changed on disk (markup or crop saved) and must be presented again.</summary>
+    public bool NeedsReload(ClipItem item) => item.Kind == ItemKind.Image && _built == ItemKind.Image && item.DisplayFile != _imageFile;
+
     public bool IsTextEditing { get; private set; }
+
+    private string _imageFile = "";
 
     public int ZoomPercent => _zoom.Percent;
 
     /// <summary>Shows an item, reusing the window's position when one is already open.</summary>
     public bool Present(ClipItem item, string position, Placement placement)
     {
-        var changed = _item?.Id != item.Id || _built != item.Kind || !IsOpen;
+        var changed = _item?.Id != item.Id || _built != item.Kind || !IsOpen || NeedsReload(item);
         if (changed && !FlushEdits()) return false;
         if (_built != item.Kind) Build(item.Kind);
         _item = item;
@@ -163,6 +168,7 @@ internal sealed class PreviewWindow : FloatingWindow
                 var source = Decode(_store.MediaPath(item));
                 if (source is null) return false;
                 _image.Source = source;
+                _imageFile = item.DisplayFile;
                 var width = (item.PixelWidth > 0 ? item.PixelWidth : source.PixelWidth) / placement.Scale;
                 var height = (item.PixelHeight > 0 ? item.PixelHeight : source.PixelHeight) / placement.Scale;
                 var fit = Math.Min(1, Math.Min(workWidth * 0.88 / width, workHeight * 0.82 / height));
@@ -697,6 +703,14 @@ internal sealed class PreviewWindow : FloatingWindow
         if (_built == ItemKind.Text && actions.Contains("copy") && gesture == "Ctrl+C" && _text.SelectionLength > 0)
         {
             if (_host.CopyText(_text.SelectedText)) FlashCopied();
+            e.Handled = true;
+            return;
+        }
+
+        // In an image preview, Ctrl+Z / Ctrl+Shift+Z step through this session's markup and crop results.
+        if (_built == ItemKind.Image && gesture is "Ctrl+Z" or "Ctrl+Shift+Z" or "Ctrl+Y"
+            && _host.Forward(gesture == "Ctrl+Z" ? "markupUndo" : "markupRedo", gesture))
+        {
             e.Handled = true;
             return;
         }

@@ -30,6 +30,8 @@ public sealed class LibraryStore : IDisposable
     private readonly List<List<TakeDownEntry>> _takeDownUndo = [];
     private readonly List<List<TrashEntry>> _trashUndo = [];
     private readonly Lock _gate = new();
+    private readonly Dictionary<Guid, List<ImageEdit>> _imageEditUndo = [];
+    private readonly Dictionary<Guid, List<ImageEdit>> _imageEditRedo = [];
 
     public LibraryStore(string directory, Func<DateTimeOffset>? clock = null)
     {
@@ -648,25 +650,78 @@ public sealed class LibraryStore : IDisposable
     // ----- Images -----
 
     /// <summary>Stores an edited rendering while the original file and editable metadata remain available.</summary>
-    public void SaveImageEdit(Guid id, byte[] renderedPng, string annotationsJson, CropRect? crop)
+    /// <summary>
+    /// Stores a markup/crop result. <paramref name="renderedPng"/> null (an empty document) shows the original again.
+    /// The original file is never touched; the previous edit stays undoable for this session.
+    /// </summary>
+    public void SaveImageEdit(Guid id, byte[]? renderedPng, string annotationsJson, CropRect? crop)
     {
-        MediaStore.ReadPngSize(renderedPng);
+        if (renderedPng is not null) MediaStore.ReadPngSize(renderedPng);
         lock (_gate)
         {
             var item = Select([id]).Single();
             if (item.Kind != ItemKind.Image || item.Recording) throw new InvalidOperationException("Only images can be edited.");
-            var rendered = Media.PutPng(renderedPng);
-            var now = _clock();
-            Mutate([item], i =>
-            {
-                i.RenderedFile = rendered;
-                i.AnnotationsJson = annotationsJson;
-                i.Crop = crop;
-                i.OcrText = "";
-                i.UpdatedAt = now;
-            });
+            var rendered = renderedPng is null ? "" : Media.PutPng(renderedPng);
+            var before = new ImageEdit(item.RenderedFile, item.AnnotationsJson, item.Crop);
+            if (before == new ImageEdit(rendered, annotationsJson, crop)) return;
+            ApplyImageEdit(item, new ImageEdit(rendered, annotationsJson, crop));
+            Push(_imageEditUndo, id, before);
+            _imageEditRedo.Remove(id);
         }
     }
+
+    public bool CanUndoImageEdit(Guid id)
+    {
+        lock (_gate) return _imageEditUndo.TryGetValue(id, out var stack) && stack.Count > 0;
+    }
+
+    public bool CanRedoImageEdit(Guid id)
+    {
+        lock (_gate) return _imageEditRedo.TryGetValue(id, out var stack) && stack.Count > 0;
+    }
+
+    /// <summary>Restores the image's previous markup/crop result from this session. Returns false when there is none.</summary>
+    public bool UndoImageEdit(Guid id) => StepImageEdit(id, _imageEditUndo, _imageEditRedo);
+
+    public bool RedoImageEdit(Guid id) => StepImageEdit(id, _imageEditRedo, _imageEditUndo);
+
+    private bool StepImageEdit(Guid id, Dictionary<Guid, List<ImageEdit>> from, Dictionary<Guid, List<ImageEdit>> to)
+    {
+        lock (_gate)
+        {
+            if (!from.TryGetValue(id, out var stack) || stack.Count == 0) return false;
+            var item = Find(id) is { IsTrashed: false, Kind: ItemKind.Image } ? Select([id]).Single() : null;
+            if (item is null) return false;
+            var target = stack[^1];
+            if (target.Rendered.Length > 0 && !File.Exists(Media.PathOf(target.Rendered))) return false;
+            stack.RemoveAt(stack.Count - 1);
+            Push(to, id, new ImageEdit(item.RenderedFile, item.AnnotationsJson, item.Crop));
+            ApplyImageEdit(item, target);
+            return true;
+        }
+    }
+
+    private void ApplyImageEdit(ClipItem item, ImageEdit edit)
+    {
+        var now = _clock();
+        Mutate([item], i =>
+        {
+            i.RenderedFile = edit.Rendered;
+            i.AnnotationsJson = edit.Json;
+            i.Crop = edit.Crop;
+            i.OcrText = "";
+            i.UpdatedAt = now;
+        });
+    }
+
+    private static void Push(Dictionary<Guid, List<ImageEdit>> stacks, Guid id, ImageEdit edit)
+    {
+        if (!stacks.TryGetValue(id, out var stack)) stacks[id] = stack = [];
+        stack.Add(edit);
+        if (stack.Count > 32) stack.RemoveAt(0);
+    }
+
+    private sealed record ImageEdit(string Rendered, string Json, CropRect? Crop);
 
     public void SetOcrText(Guid id, string text)
     {
@@ -716,8 +771,11 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    // Earlier image edits of this session stay on disk so they can be undone.
     private HashSet<string> ReferencedMedia() =>
-        [.. _items.SelectMany(i => new[] { i.ImageFile, i.RenderedFile, i.ThumbnailFile, i.LinkThumbnailFile, i.VideoFile, i.RenderedVideoFile }).Where(n => n.Length > 0)];
+        [.. _items.SelectMany(i => new[] { i.ImageFile, i.RenderedFile, i.ThumbnailFile, i.LinkThumbnailFile, i.VideoFile, i.RenderedVideoFile })
+            .Concat(_imageEditUndo.Values.Concat(_imageEditRedo.Values).SelectMany(stack => stack.Select(e => e.Rendered)))
+            .Where(n => n.Length > 0)];
 
     private bool TrashEntryStillApplies(TrashEntry entry) =>
         _byId.TryGetValue(entry.Id, out var item) && item.IsTrashed && item.TrashRevision == entry.TrashRevision;

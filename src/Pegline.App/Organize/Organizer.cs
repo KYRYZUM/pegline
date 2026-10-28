@@ -19,7 +19,7 @@ internal sealed class Organizer(LibraryStore store, SettingsStore settings, Item
     public ItemFiles Files => files;
 
     /// <summary>Pin to folder… (Shift+P): recent folders first, Ctrl+N creates one, the last row pins without a folder.</summary>
-    public OrganizerWindow? PinToFolder(ShelfPalette palette, IReadOnlyList<Guid> ids, Action<string> notify)
+    public HostedWindow? PinToFolder(ShelfPalette palette, IReadOnlyList<Guid> ids, Action<string> notify)
     {
         var captured = Live(ids);
         if (captured.Count == 0) return null;
@@ -59,7 +59,7 @@ internal sealed class Organizer(LibraryStore store, SettingsStore settings, Item
     }
 
     /// <summary>Add tag… (Ctrl+Shift+T): pick an existing tag or create the typed one, for every captured item.</summary>
-    public OrganizerWindow? AddTag(ShelfPalette palette, IReadOnlyList<Guid> ids, Action<string> notify)
+    public HostedWindow? AddTag(ShelfPalette palette, IReadOnlyList<Guid> ids, Action<string> notify)
     {
         var captured = Live(ids);
         if (captured.Count == 0) return null;

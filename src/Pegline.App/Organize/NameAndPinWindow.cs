@@ -14,7 +14,7 @@ namespace Pegline.App.Organize;
 /// "Name and pin…" (Alt+P). Enter saves the name, pins the item and moves to the next one in the frozen batch;
 /// Esc leaves without touching the current item. The name is search metadata, never a replacement for content.
 /// </summary>
-internal sealed class NameAndPinWindow : OrganizerWindow
+internal sealed class NameAndPinWindow : HostedWindow
 {
     private const double SurfaceWidth = 520;
     private const double SurfaceHeight = 192;

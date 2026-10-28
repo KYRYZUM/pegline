@@ -39,8 +39,10 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: sürükle-bırak hedefleri (Gezgin, tarayıcı, Office) ve gerçek uygulamalarda yapıştırma doğrulaması elle denenecek
 
 ## Faz 5 — Görsel işaretleme ve kırpma
-- [ ] Kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin; seç/taşı/boyutlandır; renk / kalınlık / dolgu
-- [ ] Orijinali bozmayan kırpma, geri al / yinele, `Ctrl+S`, düzenlenebilir işaretlerin kalıcılığı
+- [x] Kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin (yerinde yazma, çift tıkla düzenleme); seç/taşı/boyutlandır; 8 renk, 4 kalınlık, dolgu, 4 yazı boyutu; `Shift` ile düz çizgi / kare
+- [x] Orijinali bozmayan kırpma (tutamaçlar, taşıma, sıfırlama; `C` doğrudan kırpma), 60 adım geri al / yinele, `Ctrl+S`, `Ctrl+Enter`/`Esc` kaydet ve bitir, işaretler sonradan düzenlenebilir vektör olarak saklanır, tam çözünürlükte PNG
+- [x] Önizlemede `Ctrl+Z` / `Ctrl+Shift+Z` ile oturum içi düzenleme geçmişi; yakınlaştırma (%100–400) ve `Space`+sürükle kaydırma
+- [ ] Canlı kabul: fare ve klavyeyle uçtan uca işaretleme elle denenecek
 
 ## Faz 6 — Yakalama kaynakları ve OCR
 - [ ] Ekran görüntüsü yakalama (`Ctrl+Alt+A`, imleçteki ekran, kırpma ile açılır)

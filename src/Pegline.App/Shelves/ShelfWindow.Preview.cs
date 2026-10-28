@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using Pegline.App.Actions;
 using Pegline.App.Localization;
+using Pegline.App.Markup;
 using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Preview;
@@ -22,7 +23,7 @@ public partial class ShelfWindow : IPreviewHost
 {
     private PreviewWindow? _preview;
     private ActionPalette? _actions;
-    private OrganizerWindow? _picker;
+    private HostedWindow? _picker;
     private bool _closingChildren;
 
     private static readonly HashSet<string> ImplementedActions =
@@ -35,6 +36,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
+        "markup", "crop", "menu.markupUndo", "menu.markupRedo",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -86,13 +88,15 @@ public partial class ShelfWindow : IPreviewHost
     /// <summary>Follows the navigator's focus after a move, removal or store change.</summary>
     private void SyncPreview()
     {
+        // The image editor owns the preview's item until it closes; the preview catches up afterwards.
+        if (_picker is MarkupWindow) return;
         if (_preview is not { IsOpen: true } preview || _closingChildren) return;
         if (_nav.FocusedItem is not { } item)
         {
             preview.ForceClose();
             return;
         }
-        if (preview.Item?.Id == item.Id) preview.Refresh(item, PositionOf(item));
+        if (preview.Item?.Id == item.Id && !preview.NeedsReload(item)) preview.Refresh(item, PositionOf(item));
         else if (!preview.Present(item, PositionOf(item), PreviewPlacement())) preview.ForceClose();
     }
 
@@ -144,7 +148,17 @@ public partial class ShelfWindow : IPreviewHost
             case "search":
                 _preview.Close();
                 return Run("search", gesture);
-            case "library" or "folder" or "name" or "tag" or "export" or "copyOCR" or "markup" or "crop":
+            case "folder" or "name" or "tag" or "export":
+                Organize(action, ActionOrigin.ShelfPreview);
+                return true;
+            case "markup" or "crop":
+                OpenMarkup(action == "crop");
+                return true;
+            case "markupUndo" or "markupRedo":
+                return StepImageEdit(item, action == "markupRedo");
+            case "library":
+                return Run("library", gesture);
+            case "copyOCR":
                 ShowToast(Loc.T("Coming soon"));
                 return true;
             default:
@@ -242,7 +256,7 @@ public partial class ShelfWindow : IPreviewHost
             return;
         }
         var ids = targets.Select(i => i.Id).ToList();
-        OrganizerWindow? picker;
+        HostedWindow? picker;
         if (action == "name")
         {
             var naming = _organizer.NameAndPin(_palette, ids, ShowToast);
@@ -256,21 +270,56 @@ public partial class ShelfWindow : IPreviewHost
             picker = naming;
         }
         else picker = action == "folder" ? _organizer.PinToFolder(_palette, ids, ShowToast) : _organizer.AddTag(_palette, ids, ShowToast);
-        if (picker is null) return;
-        picker.Owner = parent;
-        picker.Closed += (_, _) =>
+        if (picker is not null) PresentChild(picker, parent);
+    }
+
+    /// <summary>Shows a picker or the image editor over <paramref name="parent"/> and returns focus to it afterwards.</summary>
+    private void PresentChild(HostedWindow child, Window parent)
+    {
+        child.Owner = parent;
+        child.Closed += (_, _) =>
         {
             _picker = null;
             if (_closingChildren) return;
-            if (picker.RestoreParentFocus && parent.IsVisible)
+            if (child is MarkupWindow) SyncPreview();
+            if (child.RestoreParentFocus && parent.IsVisible)
             {
                 parent.Activate();
                 Keyboard.Focus(parent);
             }
             else ScheduleFocusCheck();
         };
-        _picker = picker;
-        picker.Present(parent);
+        _picker = child;
+        child.Present(parent);
+    }
+
+    /// <summary>Image markup (M) or crop (C) for the previewed image, or the focused one on the shelves.</summary>
+    private void OpenMarkup(bool crop)
+    {
+        if (_picker is not null) return;
+        var target = _preview is { IsOpen: true, Item: { } shown } ? _store.Find(shown.Id) : _nav.FocusedItem;
+        if (target is null)
+        {
+            ShowToast(Loc.T("Select one image first"));
+            return;
+        }
+        var editor = MarkupWindow.Create(_store, target, _palette, _keymap, crop, out var error);
+        if (editor is null)
+        {
+            ShowToast(error ?? Loc.T("Select one image first"));
+            return;
+        }
+        editor.Saved += (_, message) => ShowToast(message);
+        PresentChild(editor, _preview is { IsOpen: true } preview ? preview : this);
+    }
+
+    /// <summary>Ctrl+Z / Ctrl+Shift+Z in an image preview step through this session's markup and crop results.</summary>
+    private bool StepImageEdit(ClipItem item, bool redo)
+    {
+        if (item.Kind != ItemKind.Image) return false;
+        var done = redo ? _store.RedoImageEdit(item.Id) : _store.UndoImageEdit(item.Id);
+        ShowToast(Loc.T(done ? (redo ? "Redone" : "Undone") : (redo ? "Nothing to redo" : "Nothing to undo")));
+        return true;
     }
 
     /// <summary>Drags the card, or the whole selection when the card is part of it.</summary>
@@ -368,6 +417,8 @@ public partial class ShelfWindow : IPreviewHost
             Tags = _store.AllTags,
             ItemFolders = single is null ? [] : _store.Folders.Where(f => single.FolderIds.Contains(f.Id)).ToList(),
             ItemTags = single?.Tags ?? [],
+            CanUndoMarkup = single is { Kind: ItemKind.Image } && _store.CanUndoImageEdit(single.Id),
+            CanRedoMarkup = single is { Kind: ItemKind.Image } && _store.CanRedoImageEdit(single.Id),
             CanTakeDownLeft = index > 0,
             CanTakeDownRight = index >= 0 && index < row.Count - 1,
         };
@@ -400,6 +451,8 @@ public partial class ShelfWindow : IPreviewHost
                 _store.RemoveTag(ids, id[ActionCatalog.RemoveTagPrefix.Length..]);
             else if (id is "folder" or "name" or "tag" or "export")
                 Organize(id, origin);
+            else if (id is "markup" or "crop")
+                OpenMarkup(id == "crop");
             else if (origin == ActionOrigin.ShelfPreview && _preview is { IsOpen: true } preview)
                 RunInPreview(preview, id);
             else
@@ -448,6 +501,9 @@ public partial class ShelfWindow : IPreviewHost
                 if (removed.Count == 0) break;
                 _store.TakeDown(removed);
                 ShowToast(Loc.F("Took down {0} items", removed.Count));
+                break;
+            case "markupUndo" or "markupRedo" when single is not null:
+                StepImageEdit(single, action == "markupRedo");
                 break;
             case "resetZoom":
                 _preview?.ResetZoom();
