@@ -33,7 +33,7 @@ public sealed partial class CatalogTests
     {
         var catalog = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(Localization(), "Catalogs", language + ".json")))!;
         var turkish = Turkish();
-        Assert.Empty(turkish.Keys.Where(k => !catalog.ContainsKey(k)));
+        Assert.All(turkish.Keys, key => Assert.True(catalog.ContainsKey(key), key));
         Assert.All(catalog, entry =>
         {
             Assert.False(string.IsNullOrWhiteSpace(entry.Value), entry.Key);
