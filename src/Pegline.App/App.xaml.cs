@@ -191,12 +191,45 @@ public partial class App : Application
                     _pairing.ClipboardImage(image.Id, image.PixelWidth, image.PixelHeight, DateTimeOffset.Now);
                     Collected(image, crop: false);
                     break;
+                case ClipKind.Files when settings.CaptureImages && content.Files is { Count: > 0 } files:
+                    CollectCopiedFiles(files);
+                    break;
             }
         }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or InvalidDataException or IOException)
         {
             Log(ex);
         }
+    }
+
+    /// <summary>Image files copied in Explorer or a chat app; they are read off the UI thread, the originals stay untouched.</summary>
+    private async void CollectCopiedFiles(IReadOnlyList<string> files)
+    {
+        ClipItem? last = null;
+        foreach (var path in files)
+        {
+            byte[]? png;
+            try
+            {
+                png = await Task.Run(() => FolderWatcher.ReadAsPng(path));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or InvalidOperationException or ArgumentException)
+            {
+                Log(ex);
+                continue;
+            }
+            if (png is null || _store is null) continue;
+            try
+            {
+                last = _store.InsertImage(png, path);
+                if (_settings?.Current.IndexImages == true) _ocr?.Enqueue(last);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or InvalidDataException or IOException)
+            {
+                Log(ex);
+            }
+        }
+        if (last is not null) Collected(last, crop: false);
     }
 
     private void OnGlobalShortcut(string action)

@@ -55,6 +55,9 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern IntPtr GetClipboardOwner();
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern uint DragQueryFile(IntPtr drop, uint index, StringBuilder? file, int size);
+
     [DllImport("kernel32.dll")]
     public static extern IntPtr GlobalLock(IntPtr handle);
 

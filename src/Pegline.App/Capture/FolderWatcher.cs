@@ -132,7 +132,7 @@ internal sealed class FolderWatcher : IDisposable
     }
 
     /// <summary>The image as PNG (other formats are decoded and re-encoded), or null when it is not a usable image.</summary>
-    private static byte[]? ReadAsPng(string path)
+    internal static byte[]? ReadAsPng(string path)
     {
         var info = new FileInfo(path);
         if (!info.Exists || info.Length == 0 || info.Length > WatchedFiles.MaxImageBytes || info.Attributes.HasFlag(FileAttributes.ReparsePoint)) return null;

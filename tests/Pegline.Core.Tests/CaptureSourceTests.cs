@@ -25,6 +25,28 @@ public sealed class CaptureSourceTests : IDisposable
     public void WatchedFoldersCollectOnlyImages(string path, bool collected) => Assert.Equal(collected, WatchedFiles.IsImage(path));
 
     [Fact]
+    public void ACopiedPictureWinsOverTheAddressOrCaptionNextToIt()
+    {
+        // Browser "Copy image": picture + HTML (+ sometimes its address as text).
+        Assert.True(ClipboardAdmission.PrefersImage(true, null, ClipboardAdmission.IsDocumentCopy(["HTML Format", "PNG"])));
+        Assert.True(ClipboardAdmission.PrefersImage(true, "https://example.com/cat.png", false));
+        Assert.True(ClipboardAdmission.PrefersImage(true, "Look at this", false));
+        // Excel/Word cells come with a bitmap rendering; the text is what was copied.
+        Assert.False(ClipboardAdmission.PrefersImage(true, "Q3\t42", ClipboardAdmission.IsDocumentCopy(["Rich Text Format", "Csv", "XML Spreadsheet"])));
+        // A picture copied out of a document has no text of its own.
+        Assert.True(ClipboardAdmission.PrefersImage(true, null, true));
+        Assert.False(ClipboardAdmission.PrefersImage(false, "text", false));
+    }
+
+    [Fact]
+    public void OnlyImageFilesAreTakenFromCopiedFiles()
+    {
+        var copied = ClipboardAdmission.CopiedImages([@"C:\a\photo.jpg", @"C:\a\notes.docx", @"C:\a\PHOTO.JPG", @"C:\a\shot.png"]);
+        Assert.Equal([@"C:\a\photo.jpg", @"C:\a\shot.png"], copied);
+        Assert.Equal(ClipboardAdmission.MaxCopiedFiles, ClipboardAdmission.CopiedImages(Enumerable.Range(0, 50).Select(i => $@"C:\a\{i}.png")).Count);
+    }
+
+    [Fact]
     public void AScreenshotFileIsPairedWithItsRecentClipboardCopyOnce()
     {
         var now = new DateTimeOffset(2026, 10, 28, 14, 0, 0, TimeSpan.Zero);
