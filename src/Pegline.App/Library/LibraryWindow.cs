@@ -57,11 +57,13 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private ActionPalette? _actions;
     private HostedWindow? _picker;
     private readonly Organizer _organizer;
+    private readonly Capture.OcrService _ocr;
     private bool _quitting;
 
-    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer)
+    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer, Capture.OcrService ocr)
     {
         _organizer = organizer;
+        _ocr = ocr;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -613,7 +615,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "markup" or "crop":
                 if (ids is [var image]) OpenMarkup(image, action == "crop");
                 break;
-            default: // copyOCR
+            case "copyOCR":
+                if (ids is [var recognized]) CopyRecognizedText(recognized);
+                else Notify(Loc.T("Select one image first"));
+                break;
+            default:
                 Notify(Loc.T("Coming soon"));
                 break;
         }
@@ -682,6 +688,27 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         }
         editor.Saved += (_, message) => Notify(message);
         PresentChild(editor, _preview is { IsOpen: true, IsActive: true } preview ? preview : this);
+    }
+
+    /// <summary>Ctrl+Shift+C: copies the text Windows OCR reads in the image.</summary>
+    private async void CopyRecognizedText(Guid id)
+    {
+        if (_store.Find(id) is not { Kind: ItemKind.Image, Recording: false } image)
+        {
+            Notify(Loc.T("Select one image first"));
+            return;
+        }
+        if (!_ocr.IsAvailable)
+        {
+            Notify(Loc.T("Text recognition is unavailable. Add a language with optical character recognition in Windows Settings."));
+            return;
+        }
+        if (image.NeedsOcr) Notify(Loc.T("Recognizing image text locally…"));
+        var text = await _ocr.TextOfAsync(id);
+        if (text is null) Notify(Loc.T("Text could not be recognized"));
+        else if (text.Trim().Length == 0) Notify(Loc.T("No text found"));
+        else if (_writer.CopyText(text)) Notify(Loc.T("Image text copied"));
+        else Notify(Loc.T("Clipboard could not be written."));
     }
 
     private bool StepImageEdit(Guid id, bool redo)
@@ -918,7 +945,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
-        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo",
+        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR",
         "menu.openScreenshotsFolder", "menu.resetZoom",
     ];
 
@@ -1143,7 +1170,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 if (latest is not null && _writer.Copy([latest])) Notify(Loc.T("Copied"));
                 break;
             case "openScreenshotsFolder":
-                var screenshots = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
+                var screenshots = Capture.FolderWatcher.ScreenshotsFolder;
                 Notify(ShellActions.Open(screenshots) is null ? "" : Loc.T("Folder not found"));
                 break;
             case "resetZoom": _preview?.ResetZoom(); break;
@@ -1261,7 +1288,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 FocusGrid();
                 return true;
             case "copyOCR":
-                Notify(Loc.T("Coming soon"));
+                CopyRecognizedText(current.Id);
                 return true;
             default:
                 return false;

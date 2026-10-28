@@ -1,12 +1,14 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using Pegline.App.Capture;
 using Pegline.App.Library;
 using Pegline.App.Localization;
 using Pegline.App.Organize;
 using Pegline.App.Platform;
 using Pegline.App.Shelves;
 using Pegline.Core.Library;
+using Pegline.Core.Capture;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
 using Pegline.Core.Transfer;
@@ -33,6 +35,10 @@ public partial class App : Application
     private ShelfWindow? _shelves;
     private LibraryWindow? _library;
     private DispatcherTimer? _expiry;
+    private OcrService? _ocr;
+    private FolderWatcher? _folders;
+    private readonly ScreenshotPairing _pairing = new();
+    private string _watchedKey = "";
 
     public static string DataDirectory { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductFolder);
 
@@ -64,22 +70,26 @@ public partial class App : Application
         var files = new ItemFiles(_store, Path.Combine(DataDirectory, "transfer"));
         files.CleanDragCopies();
         var organizer = new Organizer(_store, _settings, files);
-        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer);
-        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer);
+        _ocr = new OcrService(_store, Dispatcher);
+        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer, _ocr);
+        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer, _ocr);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
         _clipboard.Captured += (_, content) => Capture(content);
         _hotKeys = new HotKeyService(_messages);
         _hotKeys.Pressed += (_, action) => OnGlobalShortcut(action);
-        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), Quit);
+        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, Quit);
         ApplyGlobalShortcuts();
+        _folders = new FolderWatcher(Dispatcher, CollectFile);
+        ConfigureFolders();
 
         _settings.Changed += (_, _) =>
         {
             Loc.Use(_settings.Current.Language);
             _store.RetentionDays = _settings.Current.RetentionDays;
             ApplyGlobalShortcuts();
+            ConfigureFolders();
         };
         _store.RecentFolderUsed += (_, folder) => _settings.Update(s =>
         {
@@ -92,6 +102,12 @@ public partial class App : Application
         _expiry.Tick += (_, _) => _store.Expire();
         _expiry.Start();
 
+        // Recognize text in images that have not been read yet, once the app has settled.
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (_settings.Current.IndexImages) _ocr.Enqueue(_store.Items);
+        }, DispatcherPriority.ApplicationIdle);
+
         new Thread(() =>
         {
             while (_showSignal.WaitOne())
@@ -100,6 +116,17 @@ public partial class App : Application
 
 #if DEBUG
         // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--ocr", var ocrImage, var ocrOutput])
+        {
+            // Development aid: recognizes one file with the same engine the app uses.
+            _ = Task.Run(async () =>
+            {
+                var text = await _ocr.RecognizeFileAsync(ocrImage);
+                File.WriteAllText(ocrOutput, _ocr.Language + Environment.NewLine + (text ?? "<null>"));
+                await Dispatcher.InvokeAsync(Shutdown);
+            });
+            return;
+        }
         if (e.Args is ["--snapshot", var markup, var shot] && markup.StartsWith("markup", StringComparison.Ordinal))
         {
             var source = _store.Items.FirstOrDefault(i => i is { Kind: ItemKind.Image, Recording: false, IsTrashed: false });
@@ -160,7 +187,9 @@ public partial class App : Application
                     _store.InsertText(content.Text);
                     break;
                 case ClipKind.Image when settings.CaptureImages && content.Png is not null:
-                    _store.InsertImage(content.Png);
+                    var image = _store.InsertImage(content.Png);
+                    _pairing.ClipboardImage(image.Id, image.PixelWidth, image.PixelHeight, DateTimeOffset.Now);
+                    Collected(image, crop: false);
                     break;
             }
         }
@@ -184,11 +213,74 @@ public partial class App : Application
                 if (_library is { IsVisible: true, IsActive: true }) _library.HideLibrary();
                 else OpenLibrary(null, null, false);
                 break;
+            case "screenshot":
+                CaptureScreen();
+                break;
             case "copyLatest":
                 var latest = _store?.Items.FirstOrDefault(i => i.Kind == ItemKind.Image && i.IsOnShelf);
                 if (latest is not null && _store is not null) new ClipboardWriter(_store).Copy([latest]);
                 break;
         }
+    }
+
+    /// <summary>A new image arrived (clipboard, screenshot folder, watched folder or screen capture).</summary>
+    private void Collected(ClipItem image, bool crop)
+    {
+        if (_settings is null || _shelves is null) return;
+        if (_settings.Current.IndexImages) _ocr?.Enqueue(image);
+        // Never pull the shelves over a full-screen app (a game or a video); the image waits on its shelf.
+        if (crop || (_settings.Current.OpenAfterScreenshot && !_shelves.IsShown && !Win32.IsFullscreenForeground()))
+            _shelves.ShowCaptured(image.Id, crop);
+    }
+
+    /// <summary>An image saved to a watched folder. A screenshot already taken from the clipboard only gains its file path.</summary>
+    private void CollectFile(byte[] png, string path)
+    {
+        if (_store is null) return;
+        try
+        {
+            var (width, height) = MediaStore.ReadPngSize(png);
+            if (_pairing.MatchFile(width, height, DateTimeOffset.Now) is { } existing)
+            {
+                _store.AttachSource(existing, path);
+                return;
+            }
+            Collected(_store.InsertImage(png, path), crop: false);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or InvalidDataException or IOException)
+        {
+            Log(ex);
+        }
+    }
+
+    /// <summary>Ctrl+Alt+A: hides Pegline, captures the display under the pointer and opens the shot in crop.</summary>
+    private async void CaptureScreen()
+    {
+        if (_store is null || _shelves is null) return;
+        if (_shelves.IsShown) _shelves.HideShelves(restoreFocus: true);
+        // Let the shelves leave the screen before the capture.
+        await Task.Delay(180);
+        try
+        {
+            Collected(_store.InsertImage(ScreenCapture.MonitorUnderPointer()), crop: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or InvalidDataException or IOException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException)
+        {
+            Log(ex);
+            _tray?.Notify("Pegline", Loc.T("Screen capture is unavailable"));
+        }
+    }
+
+    private void ConfigureFolders()
+    {
+        if (_settings is null || _folders is null) return;
+        var folders = new List<string>();
+        if (_settings.Current.CaptureScreenshots) folders.Add(FolderWatcher.ScreenshotsFolder);
+        folders.AddRange(_settings.Current.WatchFolders);
+        var key = string.Join("|", folders);
+        if (key == _watchedKey) return;
+        _watchedKey = key;
+        _folders.Configure(folders);
     }
 
     private void ApplyGlobalShortcuts()
@@ -213,6 +305,7 @@ public partial class App : Application
         _expiry?.Stop();
         _hotKeys?.Dispose();
         _clipboard?.Dispose();
+        _folders?.Dispose();
         _messages?.Dispose();
         _tray?.Dispose();
         _store?.Dispose();

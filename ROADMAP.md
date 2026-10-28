@@ -45,9 +45,11 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: fare ve klavyeyle uçtan uca işaretleme elle denenecek
 
 ## Faz 6 — Yakalama kaynakları ve OCR
-- [ ] Ekran görüntüsü yakalama (`Ctrl+Alt+A`, imleçteki ekran, kırpma ile açılır)
-- [ ] Windows ekran görüntüsü klasörü ve en fazla 3 izlenen klasör
-- [ ] Yerel OCR (Windows.Media.Ocr, EN/TR), görseldeki yazıyı kopyala (`Ctrl+Shift+C`), OCR'ın aramaya katılması
+- [x] Ekran görüntüsü yakalama (`Ctrl+Alt+A`, tepsi): imleçteki ekran, tam çözünürlük, doğrudan kırpma ile açılır
+- [x] Windows Ekran görüntüleri klasörü (taşınmış olsa da) ve en fazla 3 izlenen klasör (tepsiden ekle / kaldır); panoya da düşen ekran görüntüsü tek kayıt olur
+- [x] Yerel OCR (Windows.Media.Ocr; Türkçe yoksa İngilizce / profil dilleri), arka plan kuyruğu, düzenlenen görsel yeniden okunur, görseldeki yazıyı kopyala (`Ctrl+Shift+C`), OCR metni askı ve Kütüphane aramasında
+- [x] Yeni görselde askıları göster (tam ekran uygulama / oyun önündeyken asla)
+- [ ] Canlı kabul: `Ctrl+Alt+A` ekran yakalama elle denenecek
 
 ## Faz 7 — Görsel arama
 - [ ] MobileCLIP-S2 ONNX (Microsoft.ML.OnnxRuntime), arka plan indeksleme

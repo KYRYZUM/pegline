@@ -26,6 +26,7 @@ public partial class ShelfWindow : Window
     private readonly Action _quit;
     private readonly Action<LibraryScope?, ItemKind?, bool> _openLibrary;
     private readonly Organizer _organizer;
+    private readonly Capture.OcrService _ocr;
     private readonly ShelfNavigator _nav = new();
     private readonly ThumbnailCache _thumbnails = new();
     private readonly Dictionary<ItemKind, ShelfRowView> _rows = [];
@@ -43,9 +44,10 @@ public partial class ShelfWindow : Window
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
 
-    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary, Organizer organizer)
+    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary, Organizer organizer, Capture.OcrService ocr)
     {
         _organizer = organizer;
+        _ocr = ocr;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -464,7 +466,7 @@ public partial class ShelfWindow : Window
                 OpenMarkup(action == "crop");
                 return true;
             case "copyOCR":
-                ShowToast(Loc.T("Coming soon"));
+                CopyRecognizedText();
                 return true;
             default:
                 return false;

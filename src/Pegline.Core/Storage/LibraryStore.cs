@@ -710,6 +710,7 @@ public sealed class LibraryStore : IDisposable
             i.AnnotationsJson = edit.Json;
             i.Crop = edit.Crop;
             i.OcrText = "";
+            i.OcrSource = "";
             i.UpdatedAt = now;
         });
     }
@@ -723,12 +724,31 @@ public sealed class LibraryStore : IDisposable
 
     private sealed record ImageEdit(string Rendered, string Json, CropRect? Crop);
 
-    public void SetOcrText(Guid id, string text)
+    /// <summary>
+    /// Stores recognized text for the pixels in <paramref name="source"/>. Ignored when the image changed
+    /// (markup, crop) while recognition ran, so stale text never describes new pixels.
+    /// </summary>
+    public bool SetOcrText(Guid id, string text, string source)
     {
         lock (_gate)
         {
-            if (!_byId.TryGetValue(id, out var item)) return;
-            Mutate([item], i => i.OcrText = Limit(text, ClipboardAdmission.MaxTextChars));
+            if (!_byId.TryGetValue(id, out var item) || item.DisplayFile != source) return false;
+            Mutate([item], i =>
+            {
+                i.OcrText = Limit(text.Trim(), ClipboardAdmission.MaxTextChars);
+                i.OcrSource = source;
+            });
+            return true;
+        }
+    }
+
+    /// <summary>Records the file an image came from (a screenshot saved to disk) when it has none yet.</summary>
+    public void AttachSource(Guid id, string path)
+    {
+        lock (_gate)
+        {
+            if (!_byId.TryGetValue(id, out var item) || item.SourcePath.Length > 0) return;
+            Mutate([item], i => i.SourcePath = path);
         }
     }
 

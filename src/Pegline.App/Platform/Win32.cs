@@ -167,6 +167,27 @@ internal static class Win32
     [DllImport("user32.dll")]
     public static extern short GetAsyncKeyState(int vk);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetShellWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr hwnd, StringBuilder name, int max);
+
+    /// <summary>True when the foreground window covers its whole monitor (a game, a video, a presentation).</summary>
+    public static bool IsFullscreenForeground()
+    {
+        var hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero || hwnd == GetShellWindow()) return false;
+        var name = new StringBuilder(64);
+        GetClassName(hwnd, name, name.Capacity);
+        if (name.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd") return false;
+        if (!GetWindowRect(hwnd, out var window)) return false;
+        var info = new MONITORINFO { Size = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(MonitorFromWindow(hwnd, 2), ref info)) return false;
+        var m = info.Monitor;
+        return window.Left <= m.Left && window.Top <= m.Top && window.Right >= m.Right && window.Bottom >= m.Bottom;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT
     {

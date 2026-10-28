@@ -43,6 +43,9 @@ public sealed class ClipItem
     public int PixelWidth { get; set; }
     public int PixelHeight { get; set; }
     public string OcrText { get; set; } = "";
+
+    /// <summary>The media file <see cref="OcrText"/> was recognized from; empty until recognition ran.</summary>
+    public string OcrSource { get; set; } = "";
     public string AnnotationsJson { get; set; } = "[]";
     public CropRect? Crop { get; set; }
 
@@ -70,6 +73,9 @@ public sealed class ClipItem
     public string DisplayFile => string.IsNullOrEmpty(RenderedFile) ? ImageFile : RenderedFile;
 
     public string DisplayTitle => Name.Length > 0 ? Name : Title;
+
+    /// <summary>A still image whose current pixels have not been through text recognition yet.</summary>
+    public bool NeedsOcr => Kind == ItemKind.Image && !Recording && !IsTrashed && DisplayFile.Length > 0 && OcrSource != DisplayFile;
 
     public ClipItem Clone()
     {

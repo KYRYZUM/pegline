@@ -36,7 +36,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
-        "markup", "crop", "menu.markupUndo", "menu.markupRedo",
+        "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -159,7 +159,7 @@ public partial class ShelfWindow : IPreviewHost
             case "library":
                 return Run("library", gesture);
             case "copyOCR":
-                ShowToast(Loc.T("Coming soon"));
+                CopyRecognizedText();
                 return true;
             default:
                 return false;
@@ -311,6 +311,40 @@ public partial class ShelfWindow : IPreviewHost
         }
         editor.Saved += (_, message) => ShowToast(message);
         PresentChild(editor, _preview is { IsOpen: true } preview ? preview : this);
+    }
+
+    /// <summary>Shows a newly collected image on its shelf; a screen capture opens straight into crop.</summary>
+    public void ShowCaptured(Guid id, bool crop)
+    {
+        CloseChildren();
+        ShowShelves();
+        _nav.Select(id);
+        Render();
+        if (!crop) return;
+        OpenPreview();
+        OpenMarkup(crop: true);
+    }
+
+    /// <summary>Ctrl+Shift+C: copies the text Windows OCR reads in the image, recognizing it now if needed. Browsing stays open.</summary>
+    private async void CopyRecognizedText()
+    {
+        var target = _preview is { IsOpen: true, Item: { } shown } ? _store.Find(shown.Id) : _nav.FocusedItem;
+        if (target is not { Kind: ItemKind.Image, Recording: false })
+        {
+            ShowToast(Loc.T("Select one image first"));
+            return;
+        }
+        if (!_ocr.IsAvailable)
+        {
+            ShowToast(Loc.T("Text recognition is unavailable. Add a language with optical character recognition in Windows Settings."));
+            return;
+        }
+        if (target.NeedsOcr) ShowToast(Loc.T("Recognizing image text locally…"));
+        var text = await _ocr.TextOfAsync(target.Id);
+        if (text is null) ShowToast(Loc.T("Text could not be recognized"));
+        else if (text.Trim().Length == 0) ShowToast(Loc.T("No text found"));
+        else if (_writer.CopyText(text)) ShowToast(Loc.T("Image text copied"));
+        else ShowToast(Loc.T("Clipboard could not be written."));
     }
 
     /// <summary>Ctrl+Z / Ctrl+Shift+Z in an image preview step through this session's markup and crop results.</summary>
@@ -530,7 +564,7 @@ public partial class ShelfWindow : IPreviewHost
                 OpenLibrary(null, null, search: false);
                 break;
             case "openScreenshotsFolder":
-                var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Screenshots");
+                var folder = Capture.FolderWatcher.ScreenshotsFolder;
                 if (Directory.Exists(folder)) Shell(folder, "");
                 else ShowToast(Loc.T("Folder not found"));
                 break;

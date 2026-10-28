@@ -13,7 +13,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly SettingsStore _settings;
     private readonly Icon _image;
 
-    public TrayIcon(SettingsStore settings, Action showShelves, Action openLibrary, Action quit)
+    public TrayIcon(SettingsStore settings, Action showShelves, Action openLibrary, Action captureScreen, Action quit)
     {
         _settings = settings;
         _image = DrawIcon();
@@ -23,25 +23,61 @@ internal sealed class TrayIcon : IDisposable
             if (e.Button == MouseButtons.Left) showShelves();
         };
         _icon.ContextMenuStrip = new ContextMenuStrip();
-        _icon.ContextMenuStrip.Opening += (_, _) => BuildMenu(showShelves, openLibrary, quit);
-        BuildMenu(showShelves, openLibrary, quit);
+        _icon.ContextMenuStrip.Opening += (_, _) => BuildMenu(showShelves, openLibrary, captureScreen, quit);
+        BuildMenu(showShelves, openLibrary, captureScreen, quit);
     }
 
     public void Notify(string title, string text) => _icon.ShowBalloonTip(4000, title, text, ToolTipIcon.None);
 
-    private void BuildMenu(Action showShelves, Action openLibrary, Action quit)
+    private void BuildMenu(Action showShelves, Action openLibrary, Action captureScreen, Action quit)
     {
         var menu = _icon.ContextMenuStrip!;
         menu.Items.Clear();
         var current = _settings.Current;
         menu.Items.Add(Loc.T("Show shelves") + "\t" + current.GlobalShortcuts.GetValueOrDefault("toggle", ""), null, (_, _) => showShelves());
         menu.Items.Add(Loc.T("Open Library") + "	" + current.GlobalShortcuts.GetValueOrDefault("library", ""), null, (_, _) => openLibrary());
+        menu.Items.Add(Loc.T("Capture screen") + "	" + current.GlobalShortcuts.GetValueOrDefault("screenshot", ""), null, (_, _) => captureScreen());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(Toggle(Loc.T("Capture copied text"), current.CaptureText, value => _settings.Update(s => s.CaptureText = value)));
         menu.Items.Add(Toggle(Loc.T("Capture copied images"), current.CaptureImages, value => _settings.Update(s => s.CaptureImages = value)));
         menu.Items.Add(Toggle(Loc.T("Capture copied links"), current.CaptureLinks, value => _settings.Update(s => s.CaptureLinks = value)));
+        menu.Items.Add(Toggle(Loc.T("Collect the Windows Screenshots folder"), current.CaptureScreenshots, value => _settings.Update(s => s.CaptureScreenshots = value)));
+        menu.Items.Add(Toggle(Loc.T("Show shelves after a screenshot"), current.OpenAfterScreenshot, value => _settings.Update(s => s.OpenAfterScreenshot = value)));
+        menu.Items.Add(Toggle(Loc.T("Recognize text in images"), current.IndexImages, value => _settings.Update(s => s.IndexImages = value)));
+        menu.Items.Add(WatchedFolders(current.WatchFolders));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(Loc.T("Quit Pegline"), null, (_, _) => quit());
+    }
+
+    /// <summary>Up to three extra folders whose new images are collected. Interim home until the Settings window.</summary>
+    private ToolStripMenuItem WatchedFolders(IReadOnlyList<string> folders)
+    {
+        var menu = new ToolStripMenuItem(Loc.T("Watched folders"));
+        foreach (var folder in folders)
+        {
+            var entry = new ToolStripMenuItem(folder);
+            entry.DropDownItems.Add(Loc.T("Stop watching"), null, (_, _) => _settings.Update(s => s.WatchFolders.Remove(folder)));
+            menu.DropDownItems.Add(entry);
+        }
+        if (folders.Count > 0) menu.DropDownItems.Add(new ToolStripSeparator());
+        var add = new ToolStripMenuItem(Loc.T("Add folder…")) { Enabled = folders.Count < Pegline.Core.Models.AppSettings.MaxWatchFolders };
+        add.Click += (_, _) =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog { Title = Loc.T("Watched folders") };
+            if (dialog.ShowDialog() != true) return;
+            var chosen = dialog.FolderName;
+            if (_settings.Current.WatchFolders.Contains(chosen, StringComparer.OrdinalIgnoreCase)) return;
+            try
+            {
+                _settings.Update(s => s.WatchFolders.Add(chosen));
+            }
+            catch (ArgumentException)
+            {
+                Notify("Pegline", Loc.T("Up to three folders can be watched."));
+            }
+        };
+        menu.DropDownItems.Add(add);
+        return menu;
     }
 
     private static ToolStripMenuItem Toggle(string text, bool value, Action<bool> change)

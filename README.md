@@ -24,6 +24,7 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 - `Ctrl+Shift+E` kopyaları dışa aktar (hiçbir dosyanın üzerine yazmaz), sürükle-bırak: görseller dosya olarak, metin/link metin olarak (`Alt` basılıysa .txt / .url dosyası); Kütüphanede öğeleri kenar çubuğundaki klasöre sürükleyerek ekleme
 - `Ctrl+Enter` yapıştırma yalnızca önceki uygulamadaki aynı alana yapılır; parola alanları ve değişmiş hedefler reddedilir (UI Automation, alanın içeriği okunmaz)
 - Görsel işaretleme (`M`) ve kırpma (`C`): kalem, fosforlu kalem, dikdörtgen, elips, ok, çizgi, metin; renk / kalınlık / dolgu; orijinal dosya hiç değişmez, işaretler sonradan düzenlenebilir
+- Ekran görüntüsü (`Ctrl+Alt+A`), Windows Ekran görüntüleri klasörü ve en fazla 3 izlenen klasör; görsellerdeki yazı cihazda tanınır (Windows OCR), aranabilir ve `Ctrl+Shift+C` ile kopyalanır
 - Tür başına saklama süresi; sabitlenen, klasördeki ya da etiketli öğeler süresi dolunca silinmez
 - Genel kısayollar (`Ctrl+Alt+T` askılar, `Ctrl+Alt+S` arama), tepsi simgesi, tek örnek
 
@@ -34,7 +35,7 @@ dotnet test                     # çekirdek + davranış sözleşmesi testleri
 dotnet run --project src/Pegline.App
 ```
 
-Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
+Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --ocr görsel.png çıktı.txt` OCR'ı tek dosyada dener; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
 
 ## Yapı
 

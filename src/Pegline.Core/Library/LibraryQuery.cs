@@ -33,7 +33,7 @@ public sealed record LibraryQuery
 /// <summary>Evaluates a <see cref="LibraryQuery"/> against the store's records.</summary>
 public sealed class LibraryQueryEngine
 {
-    private readonly Dictionary<Guid, (DateTimeOffset Updated, string Search, string Title)> _folded = [];
+    private readonly Dictionary<Guid, (DateTimeOffset Updated, string Ocr, string Search, string Title)> _folded = [];
 
     public IReadOnlyList<Guid> Run(IReadOnlyList<ClipItem> items, IReadOnlyList<Folder> folders, LibraryQuery query, DateTimeOffset now)
     {
@@ -112,14 +112,15 @@ public sealed class LibraryQueryEngine
     public static string HostOf(ClipItem item) =>
         item.Kind == ItemKind.Link && Uri.TryCreate(item.Url, UriKind.Absolute, out var uri) ? uri.Host.ToLowerInvariant() : "";
 
-    private (DateTimeOffset Updated, string Search, string Title) Folded(ClipItem item)
+    private (DateTimeOffset Updated, string Ocr, string Search, string Title) Folded(ClipItem item)
     {
-        if (_folded.TryGetValue(item.Id, out var cached) && cached.Updated == item.UpdatedAt) return cached;
+        // Recognized text arrives later without touching UpdatedAt, so it is part of the cache key.
+        if (_folded.TryGetValue(item.Id, out var cached) && cached.Updated == item.UpdatedAt && cached.Ocr == item.OcrSource) return cached;
         var text = string.Join('\n', new[]
         {
             item.Name, item.Title, item.Text, item.Url, item.Note, item.OcrText, item.LinkSiteName, item.LinkAuthor,
         }.Concat(item.Tags).Where(s => s.Length > 0));
-        var value = (item.UpdatedAt, Folding.Fold(text), Folding.Fold(TitleOf(item)));
+        var value = (item.UpdatedAt, item.OcrSource, Folding.Fold(text), Folding.Fold(TitleOf(item)));
         _folded[item.Id] = value;
         return value;
     }
