@@ -36,7 +36,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
-        "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink",
+        "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -164,6 +164,9 @@ public partial class ShelfWindow : IPreviewHost
             case "refreshLink":
                 RefreshLinks();
                 return true;
+            case "trimVideo":
+                OpenTrim();
+                return true;
             default:
                 return false;
         }
@@ -284,7 +287,7 @@ public partial class ShelfWindow : IPreviewHost
         {
             _picker = null;
             if (_closingChildren) return;
-            if (child is MarkupWindow) SyncPreview();
+            if (child is MarkupWindow or Capture.TrimWindow) SyncPreview();
             if (child.RestoreParentFocus && parent.IsVisible)
             {
                 parent.Activate();
@@ -314,6 +317,21 @@ public partial class ShelfWindow : IPreviewHost
         }
         editor.Saved += (_, message) => ShowToast(message);
         PresentChild(editor, _preview is { IsOpen: true } preview ? preview : this);
+    }
+
+    /// <summary>Trim video: the recording shown in the preview, or the focused one.</summary>
+    private void OpenTrim()
+    {
+        if (_picker is not null) return;
+        var target = _preview is { IsOpen: true, Item: { } shown } ? _store.Find(shown.Id) : _nav.FocusedItem;
+        if (target is null || Capture.TrimWindow.Create(_store, target, _palette, System.IO.Path.Combine(App.DataDirectory, "transfer"), out var error) is not { } trim)
+        {
+            ShowToast(Loc.T("Select a video first"));
+            return;
+        }
+        trim.Saved += (_, message) => ShowToast(message);
+        _preview?.Close();
+        PresentChild(trim, this);
     }
 
     /// <summary>Shows a newly collected image on its shelf; a screen capture opens straight into crop.</summary>

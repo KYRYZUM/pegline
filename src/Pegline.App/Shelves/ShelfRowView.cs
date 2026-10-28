@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -72,6 +72,24 @@ internal sealed class ShelfRowView : Grid
 
     private Guid? _pressed;
     private Point _pressPoint;
+
+    /// <summary>A recording's camera mark and (trimmed) length over its poster frame.</summary>
+    public static Border DurationBadge(ClipItem item)
+    {
+        var text = new TextBlock { FontSize = 10, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+        text.Inlines.Add(new System.Windows.Documents.Run("") { FontFamily = ShelfPalette.Icons });
+        text.Inlines.Add(new System.Windows.Documents.Run(" " + TimeSpan.FromSeconds(item.ShownDuration).ToString(@"m\:ss")) { FontFamily = new FontFamily("Segoe UI") });
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(6, 2, 6, 2),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 6, 6),
+            Child = text,
+        };
+    }
 
     public static string Title(ItemKind kind) => Loc.T(kind switch
     {
@@ -354,17 +372,7 @@ internal sealed class ShelfRowView : Grid
         content.Children.Add(new Border { CornerRadius = new CornerRadius(7), ClipToBounds = true, Child = image });
         if (source is null)
             content.Children.Add(new TextBlock { Text = "", FontFamily = ShelfPalette.Icons, FontSize = 26, Foreground = Palette.Muted, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center });
-        if (item.Recording)
-            content.Children.Add(new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(0xC0, 0, 0, 0)),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(6, 2, 6, 2),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Bottom,
-                Margin = new Thickness(0, 0, 6, 6),
-                Child = new TextBlock { Text = " " + TimeSpan.FromSeconds(item.DurationSeconds).ToString(@"m\:ss"), FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI"), FontSize = 10, Foreground = Brushes.White },
-            });
+        if (item.Recording) content.Children.Add(DurationBadge(item));
     }
 
     private void BuildText(Grid content, ClipItem item)

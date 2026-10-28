@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -10,7 +10,7 @@ using Pegline.Core.Storage;
 namespace Pegline.App.Platform;
 
 /// <summary>Puts records on the clipboard in shelf order, marked as Pegline's own so they are not re-captured.</summary>
-internal sealed class ClipboardWriter(LibraryStore store)
+internal sealed class ClipboardWriter(LibraryStore store, Pegline.Core.Transfer.ItemFiles? files = null)
 {
     public bool Copy(IReadOnlyList<ClipItem> items)
     {
@@ -26,11 +26,10 @@ internal sealed class ClipboardWriter(LibraryStore store)
 
         if (media.Count > 0)
         {
-            var files = new StringCollection();
+            var paths = new StringCollection();
             foreach (var item in media)
             {
-                var file = item.Recording ? store.Media.PathOf(item.RenderedVideoFile.Length > 0 ? item.RenderedVideoFile : item.VideoFile) : store.MediaPath(item);
-                if (File.Exists(file)) files.Add(file);
+                if (Named(item) is { } file) paths.Add(file);
             }
             var firstRaster = media.FirstOrDefault(i => !i.Recording);
             if (firstRaster is not null && texts.Count == 0)
@@ -42,12 +41,32 @@ internal sealed class ClipboardWriter(LibraryStore store)
             }
             // A single still image is offered as pixels only; batches and recordings also travel as files.
             if (media.Count > 1 || media[0].Recording || texts.Count > 0)
-                data.SetFileDropList(files);
+                data.SetFileDropList(paths);
         }
 
         if (!Write(data)) return false;
         store.MarkCopied(items.Select(i => i.Id));
         return true;
+    }
+
+    /// <summary>
+    /// The file pasted into Explorer or a chat: a copy carrying the record's name ("Demo take.mp4"), not the
+    /// content hash it is stored under. Falls back to the managed file when no named copy can be made.
+    /// </summary>
+    private string? Named(ClipItem item)
+    {
+        var managed = item.Recording ? store.Media.PathOf(item.CurrentVideoFile) : store.MediaPath(item);
+        if (!File.Exists(managed)) return null;
+        // A long recording is not duplicated just for its name; copying gigabytes would stall the copy.
+        if (files is null || new FileInfo(managed).Length > 64L * 1024 * 1024) return managed;
+        try
+        {
+            return files.ForDrag(item);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return managed;
+        }
     }
 
     /// <summary>Copies a text fragment, such as a selection inside the text preview, without capturing it again.</summary>

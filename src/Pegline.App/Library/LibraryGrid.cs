@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -30,6 +30,10 @@ internal sealed class LibraryGrid : Grid
     private readonly ScrollViewer _scroll = new();
     private readonly Canvas _canvas = new();
     private readonly TextBlock _empty = new();
+    private readonly StackPanel _emptyPanel = new() { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 340 };
+    private readonly Border _emptyButton = new();
+    private readonly TextBlock _emptyButtonText = new();
+    private Action? _emptyAction;
     private readonly Dictionary<Guid, (DateTimeOffset Version, bool List, Border Element)> _cache = [];
     private readonly HashSet<Guid> _realized = [];
     private IReadOnlyList<Guid> _ids = [];
@@ -61,8 +65,28 @@ internal sealed class LibraryGrid : Grid
         _empty.HorizontalAlignment = HorizontalAlignment.Center;
         _empty.VerticalAlignment = VerticalAlignment.Center;
         _empty.TextAlignment = TextAlignment.Center;
+        _empty.TextWrapping = TextWrapping.Wrap;
         _empty.IsHitTestVisible = false;
-        Children.Add(_empty);
+        _emptyPanel.Children.Add(_empty);
+        _emptyButtonText.FontSize = 13;
+        _emptyButtonText.Foreground = palette.Foreground;
+        _emptyButton.Child = _emptyButtonText;
+        _emptyButton.Background = palette.Chip;
+        _emptyButton.CornerRadius = new CornerRadius(8);
+        _emptyButton.Padding = new Thickness(14, 6, 14, 7);
+        _emptyButton.Margin = new Thickness(0, 14, 0, 0);
+        _emptyButton.HorizontalAlignment = HorizontalAlignment.Center;
+        _emptyButton.Cursor = Cursors.Hand;
+        _emptyButton.Visibility = Visibility.Collapsed;
+        _emptyButton.MouseEnter += (_, _) => _emptyButton.Background = palette.ChipActive;
+        _emptyButton.MouseLeave += (_, _) => _emptyButton.Background = palette.Chip;
+        _emptyButton.MouseLeftButtonUp += (_, e) =>
+        {
+            _emptyAction?.Invoke();
+            e.Handled = true;
+        };
+        _emptyPanel.Children.Add(_emptyButton);
+        Children.Add(_emptyPanel);
         SizeChanged += (_, e) =>
         {
             if (e.WidthChanged) Layout();
@@ -86,8 +110,12 @@ internal sealed class LibraryGrid : Grid
     /// <summary>The pointer dragged an item past the system threshold; the handler runs the drag.</summary>
     public event EventHandler<Guid>? ItemDragged;
 
-    public void Show(IReadOnlyList<Guid> ids, IReadOnlySet<Guid> selected, Guid? focused, bool listMode, string emptyText)
+    /// <param name="emptyAction">A way out of an empty view (such as "View recent copies").</param>
+    public void Show(IReadOnlyList<Guid> ids, IReadOnlySet<Guid> selected, Guid? focused, bool listMode, string emptyText, (string Label, Action Run)? emptyAction = null)
     {
+        _emptyAction = ids.Count == 0 ? emptyAction?.Run : null;
+        _emptyButtonText.Text = emptyAction?.Label ?? "";
+        _emptyButton.Visibility = _emptyAction is null ? Visibility.Collapsed : Visibility.Visible;
         var modeChanged = listMode != _listMode;
         _listMode = listMode;
         var idsChanged = modeChanged || !ReferenceEquals(ids, _ids) && !ids.SequenceEqual(_ids);
@@ -330,8 +358,14 @@ internal sealed class LibraryGrid : Grid
         {
             case ItemKind.Image:
                 var image = _thumbnails.Get(_store.MediaPath(item), small ? 80 : 360);
-                if (image is not null) return new Image { Source = image, Stretch = Stretch.UniformToFill };
-                return Glyph(ShelfRowView.Glyph(ItemKind.Image), small);
+                if (image is null) return Glyph(ShelfRowView.Glyph(ItemKind.Image), small);
+                var picture = new Image { Source = image, Stretch = Stretch.UniformToFill };
+                if (!item.Recording || small) return picture;
+                // A recording shows its (trimmed) length over the poster frame.
+                var poster = new Grid();
+                poster.Children.Add(picture);
+                poster.Children.Add(ShelfRowView.DurationBadge(item));
+                return poster;
             case ItemKind.Link:
                 if (item.LinkThumbnailFile.Length > 0 && _thumbnails.Get(_store.Media.PathOf(item.LinkThumbnailFile), small ? 80 : 360) is { } preview)
                     return new Image { Source = preview, Stretch = Stretch.UniformToFill };
@@ -360,7 +394,7 @@ internal sealed class LibraryGrid : Grid
     public static string TitleFor(ClipItem item)
     {
         var title = LibraryQueryEngine.TitleOf(item);
-        return title.Length > 0 ? title : Loc.T(item.Kind switch { ItemKind.Text => "Untitled note", ItemKind.Image => "Image", _ => "Untitled" });
+        return title.Length > 0 ? title : Loc.T(item.Kind switch { ItemKind.Text => "Untitled note", ItemKind.Image => item.Recording ? "Video" : "Image", _ => "Untitled" });
     }
 
     private static string Meta(ClipItem item)

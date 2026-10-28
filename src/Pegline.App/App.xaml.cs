@@ -67,9 +67,9 @@ public partial class App : Application
         _store = new LibraryStore(DataDirectory) { RetentionDays = _settings.Current.RetentionDays };
         _store.Expire();
 
-        var writer = new ClipboardWriter(_store);
         var foreground = new ForegroundTracker();
         var files = new ItemFiles(_store, Path.Combine(DataDirectory, "transfer"));
+        var writer = new ClipboardWriter(_store, files);
         files.CleanDragCopies();
         var organizer = new Organizer(_store, _settings, files);
         _ocr = new OcrService(_store, Dispatcher);
@@ -142,6 +142,41 @@ public partial class App : Application
                 Shutdown();
             };
             wait.Start();
+            return;
+        }
+        if (e.Args is ["--recording", var videoInput, var recordingOutput])
+        {
+            // Development aid: imports a video into the dev library, trims 1s-3s and reports the result, then exits.
+            _ = Dispatcher.InvokeAsync(async () =>
+            {
+                var lines = new List<string>();
+                try
+                {
+                    var item = await Recordings.ImportAsync(_store, Dispatcher, videoInput);
+                    if (item is null) lines.Add("import failed");
+                    else
+                    {
+                        lines.Add($"imported {item.PixelWidth}x{item.PixelHeight} {item.DurationSeconds:0.00}s poster={item.ImageFile}");
+                        var temp = Path.Combine(DataDirectory, "transfer", "check-trim.mp4");
+                        Directory.CreateDirectory(Path.GetDirectoryName(temp)!);
+                        await Recordings.RenderTrimAsync(_store.Media.PathOf(item.VideoFile), 1, 3, temp, null, CancellationToken.None);
+                        var video = await _store.Media.ImportAsync(temp, ".mp4", WatchedFiles.MaxVideoBytes);
+                        File.Delete(temp);
+                        var probe = await Recordings.ProbeAsync(_store.Media.PathOf(video), TimeSpan.FromSeconds(0.2));
+                        _store.SetRecordingTrim(item.Id, video, probe.PosterPng, 1, 3);
+                        var trimmed = _store.Find(item.Id)!;
+                        lines.Add($"trimmed file length {probe.DurationSeconds:0.00}s shown {trimmed.ShownDuration:0.00}s original kept={File.Exists(_store.Media.PathOf(trimmed.VideoFile))}");
+                        var file = new ItemFiles(_store, Path.Combine(DataDirectory, "transfer")).Materialize(trimmed);
+                        lines.Add($"copy name {file.Name}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lines.Add(ex.ToString());
+                }
+                File.WriteAllLines(recordingOutput, lines);
+                Shutdown();
+            });
             return;
         }
         if (e.Args is ["--clip-check", var clipOutput])
@@ -321,7 +356,7 @@ public partial class App : Application
     /// <summary>A finished recording in a watched folder (or the Snipping Tool's Screen Recordings folder).</summary>
     private async Task CollectRecording(string path)
     {
-        if (_store is null || _settings is null || !_settings.Current.CaptureImages) return;
+        if (_store is null) return;
         if (await Recordings.ImportAsync(_store, Dispatcher, path) is { } recording) Collected(recording, crop: false);
     }
 

@@ -171,6 +171,7 @@ internal sealed class LibraryInspector : Border
         buttons.Children.Add(Button(item.Pinned ? Glyphs.Pinned : Glyphs.Pin, Loc.T(item.Pinned ? "Unpin" : "Pin"), "pin", item.Pinned));
         buttons.Children.Add(Button("", Loc.T("Preview"), "preview"));
         if (item.Kind == ItemKind.Link) buttons.Children.Add(Button(Glyphs.OpenExternal, Loc.T("Open in browser"), "open"));
+        if (item.Recording && !item.IsTrashed) buttons.Children.Add(Button("", Loc.T("Trim video"), "trimVideo"));
         if (item.IsTrashed)
         {
             buttons.Children.Add(Button("", Loc.T("Restore"), "restore"));
@@ -231,6 +232,8 @@ internal sealed class LibraryInspector : Border
     {
         var parts = new List<string> { ShelfRowView.Title(item.Kind) };
         if (item.Kind == ItemKind.Image && item.PixelWidth > 0) parts.Add($"{item.PixelWidth}×{item.PixelHeight}");
+        if (item.Recording)
+            parts.Add(Loc.T("Video") + " " + TimeSpan.FromSeconds(item.ShownDuration).ToString(@"m\:ss") + (item.RenderedVideoFile.Length > 0 ? " (" + Loc.T("trimmed") + ")" : ""));
         if (item.Kind == ItemKind.Text) parts.Add(Loc.F("{0} characters", item.Text.Length));
         parts.Add(Loc.T("Added") + " " + item.CreatedAt.LocalDateTime.ToString("g", CultureInfo.CurrentCulture));
         if (item.LastCopiedAt is { } copied) parts.Add(Loc.T("Copied") + " " + LibraryGrid.Relative(copied));

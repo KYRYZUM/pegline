@@ -58,8 +58,11 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: gerçek kütüphanede görsel arama elle denenecek
 
 ## Faz 8 — Linkler ve kayıtlar
-- [ ] Link zenginleştirme: site / YouTube başlığı, yazar, küçük resim (yerel ve gizli parametreli URL'ler hariç)
-- [ ] MP4/MOV kayıtları: içe aktarma, izlenen klasör, oynatma, Trim (Windows.Media.Editing), dosya olarak kopyala / sürükle / dışa aktar
+- [x] Link zenginleştirme: başlık, site, yazar, küçük resim (Open Graph / `<title>`, YouTube oEmbed); yalnızca herkese açık HTTPS, her çözülen adres ve yönlendirme yeniden denetlenir (DNS rebinding yok), boyut / süre sınırı, jeton / imza / kimlik bilgisi içeren linkler hiç istenmez; en fazla 2 eşzamanlı istek, başarısızlar 1 saat sonra yeniden; "Link önizlemesini yenile"; tepsiden kapatılabilir
+- [x] MP4/MOV kayıtları: Gezgin'den kopyala, Kütüphaneye sürükle-bırak, Ekran Alıntısı Aracı'nın "Screen Recordings" klasörü ve izlenen klasörler (yazma bitene kadar beklenir); kapak karesi ve süre; önizlemede oynatma (`K`, sarma çubuğu)
+- [x] Videoyu kes (Windows.Media.Editing): orijinal hiç değişmez, kesilen parça yeni dosya; `I`/`O` başlangıç/bitiş, "Videonun tamamını kullan" ile geri dönüş; kopyala / sürükle / dışa aktar kesilmiş videoyu adıyla verir
+- [x] Kütüphanem boşken "Son kopyaları göster" düğmesi
+- [ ] Canlı kabul: gerçek ekran kaydıyla oynatma ve kesme penceresi elle denenecek
 
 ## Faz 9 — Ayarlar ve kişiselleştirme
 - [ ] Ayarlar penceresi: Genel, Geçmiş, Kaynaklar, Klavye kısayolları (kaydedici), Güncellemeler, Hakkında

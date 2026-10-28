@@ -471,10 +471,15 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         _kinds.Children.Add(KindChip(Loc.T("Texts"), ItemKind.Text));
         _kinds.Children.Add(KindChip(Loc.T("Links"), ItemKind.Link));
         RenderTools();
-        var empty = _model.Query.Search.Length > 0 || _model.Query.HasFilters ? Loc.T("No matching items")
+        var filtered = _model.Query.Search.Length > 0 || _model.Query.HasFilters;
+        var empty = filtered ? Loc.T("No matching items")
             : _model.Query.Scope.Kind == LibraryScopeKind.Trash ? Loc.T("Trash is empty")
+            : _model.Query.Scope.Kind == LibraryScopeKind.Saved ? Loc.T("Nothing saved yet. Pin an item, add it to a folder or tag it to keep it here; everything you copy is in Recent copies.")
             : Loc.T("No items yet");
-        _grid.Show(_model.Ids, _model.Selected, _model.Focused, _model.ListMode, empty);
+        (string, Action)? way = filtered ? (Loc.T("Clear filters"), () => RunMenu("clearFilters"))
+            : _model.Query.Scope.Kind == LibraryScopeKind.Saved ? (Loc.T("View recent copies"), () => ChooseScope(LibraryScope.Recent))
+            : null;
+        _grid.Show(_model.Ids, _model.Selected, _model.Focused, _model.ListMode, empty, way);
         if (_model.Focused is { } focused) _grid.EnsureVisible(focused);
         _inspector.Show(_model.Selected.Count > 1 ? _model.ActionIds : _model.Focused is { } id ? [id] : [], _model.Focused);
     }
@@ -685,6 +690,10 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             case "refreshLink":
                 RefreshLinks(ids);
                 break;
+            case "trimVideo":
+                if (ids is [var video]) OpenTrim(video);
+                else Notify(Loc.T("Select a video first"));
+                break;
             default:
                 Notify(Loc.T("Coming soon"));
                 break;
@@ -744,13 +753,26 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         {
             _picker = null;
             if (_quitting) return;
-            if (child is MarkupWindow) SyncPreview();
+            if (child is MarkupWindow or Capture.TrimWindow) SyncPreview();
             if (!child.RestoreParentFocus || !parent.IsVisible) return;
             parent.Activate();
             if (parent == this) FocusGrid();
         };
         _picker = child;
         child.Present(parent);
+    }
+
+    private void OpenTrim(Guid id)
+    {
+        if (_picker is not null || !_inspector.Flush()) return;
+        if (_store.Find(id) is not { } item || Capture.TrimWindow.Create(_store, item, _palette, Path.Combine(App.DataDirectory, "transfer"), out _) is not { } trim)
+        {
+            Notify(Loc.T("Select a video first"));
+            return;
+        }
+        trim.Saved += (_, message) => Notify(message);
+        _preview?.Close();
+        PresentChild(trim, this);
     }
 
     /// <summary>Image markup (M) or crop (C).</summary>
@@ -844,6 +866,9 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 break;
             case "refreshLink":
                 RefreshLinks(_model.ActionIds);
+                break;
+            case "trimVideo":
+                if (_model.ActionIds is [var video]) OpenTrim(video);
                 break;
         }
     }
@@ -1026,7 +1051,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.searchVisual", "menu.filters", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
-        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink",
+        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
         "menu.openScreenshotsFolder", "menu.resetZoom",
     ];
 
@@ -1387,6 +1412,9 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 return true;
             case "refreshLink":
                 RefreshLinks([current.Id]);
+                return true;
+            case "trimVideo":
+                OpenTrim(current.Id);
                 return true;
             default:
                 return false;

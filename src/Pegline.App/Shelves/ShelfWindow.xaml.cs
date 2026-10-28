@@ -473,6 +473,9 @@ public partial class ShelfWindow : Window
             case "refreshLink":
                 RefreshLinks();
                 return true;
+            case "trimVideo":
+                OpenTrim();
+                return true;
             default:
                 return false;
         }
