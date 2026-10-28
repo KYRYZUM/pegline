@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -186,6 +186,20 @@ internal sealed class LibraryInspector : Border
         {
             Label(Loc.T("Address"));
             _panel.Children.Add(new TextBox { Text = item.Url, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontSize = 12 });
+            var state = item.LinkMetadataState switch
+            {
+                "failed" => Loc.T("Preview unavailable; your link is saved"),
+                "blocked" => Loc.T("No preview is fetched for local, non-HTTPS or token-bearing links"),
+                _ => "",
+            };
+            if (state.Length > 0) _panel.Children.Add(new TextBlock { Text = state, FontSize = 11.5, Foreground = _palette.Muted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            if (editable && item.LinkMetadataState != "blocked")
+            {
+                var refresh = Button("", Loc.T("Refresh link preview"), "refreshLink");
+                refresh.Margin = new Thickness(0, 6, 0, 0);
+                refresh.HorizontalAlignment = HorizontalAlignment.Left;
+                _panel.Children.Add(refresh);
+            }
         }
         Field(Loc.T("Note"), _note, editable);
 

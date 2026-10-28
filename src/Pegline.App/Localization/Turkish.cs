@@ -375,5 +375,9 @@ internal static class Turkish
         ["Image indexing is turned off in the tray menu."] = "Görsel dizinleme tepsi menüsünden kapatılmış.",
         ["Index images for search"] = "Görselleri aramaya hazırla (yazı ve içerik)",
         ["Date added"] = "Eklenme tarihi",
+        ["Show link titles and previews"] = "Link başlıklarını ve önizlemelerini getir",
+        ["Refreshing link preview…"] = "Link önizlemesi yenileniyor…",
+        ["Preview unavailable; your link is saved"] = "Önizleme alınamadı; linkin kayıtlı",
+        ["No preview is fetched for local, non-HTTPS or token-bearing links"] = "Yerel, HTTPS olmayan ya da anahtar/jeton içeren linkler için önizleme alınmaz",
     };
 }

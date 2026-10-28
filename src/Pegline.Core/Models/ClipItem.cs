@@ -1,4 +1,4 @@
-namespace Pegline.Core.Models;
+﻿namespace Pegline.Core.Models;
 
 public enum ItemKind
 {
@@ -53,6 +53,10 @@ public sealed class ClipItem
     public string LinkSiteName { get; set; } = "";
     public string LinkAuthor { get; set; } = "";
     public string LinkThumbnailFile { get; set; } = "";
+
+    /// <summary>Lookup state: "" not tried, "ready", "failed" (retried later) or "blocked" (never looked up).</summary>
+    public string LinkMetadataState { get; set; } = "";
+    public DateTimeOffset? LinkMetadataAttemptedAt { get; set; }
 
     // Screen recordings live on the Images shelf.
     public bool Recording { get; set; }

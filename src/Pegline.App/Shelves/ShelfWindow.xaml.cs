@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -27,6 +27,7 @@ public partial class ShelfWindow : Window
     private readonly Action<LibraryScope?, ItemKind?, bool> _openLibrary;
     private readonly Organizer _organizer;
     private readonly Capture.OcrService _ocr;
+    private readonly Links.LinkPreviewService _links;
     private readonly ShelfNavigator _nav = new();
     private readonly ThumbnailCache _thumbnails = new();
     private readonly Dictionary<ItemKind, ShelfRowView> _rows = [];
@@ -44,10 +45,11 @@ public partial class ShelfWindow : Window
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
 
-    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary, Organizer organizer, Capture.OcrService ocr)
+    internal ShelfWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action quit, Action<LibraryScope?, ItemKind?, bool> openLibrary, Organizer organizer, Capture.OcrService ocr, Links.LinkPreviewService links)
     {
         _organizer = organizer;
         _ocr = ocr;
+        _links = links;
         _store = store;
         _settings = settings;
         _writer = writer;
@@ -467,6 +469,9 @@ public partial class ShelfWindow : Window
                 return true;
             case "copyOCR":
                 CopyRecognizedText();
+                return true;
+            case "refreshLink":
+                RefreshLinks();
                 return true;
             default:
                 return false;

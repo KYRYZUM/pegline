@@ -37,6 +37,7 @@ public partial class App : Application
     private DispatcherTimer? _expiry;
     private OcrService? _ocr;
     private Search.VisualSearchService? _visual;
+    private Links.LinkPreviewService? _links;
     private FolderWatcher? _folders;
     private readonly ScreenshotPairing _pairing = new();
     private string _watchedKey = "";
@@ -73,8 +74,9 @@ public partial class App : Application
         var organizer = new Organizer(_store, _settings, files);
         _ocr = new OcrService(_store, Dispatcher);
         _visual = new Search.VisualSearchService(_store, Dispatcher, Path.Combine(AppContext.BaseDirectory, "CLIP"), Path.Combine(DataDirectory, "search"), () => _settings.Current.IndexImages);
-        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer, _ocr);
-        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer, _ocr, _visual);
+        _links = new Links.LinkPreviewService(_store, Dispatcher, () => _settings.Current.FetchLinkMetadata);
+        _shelves = new ShelfWindow(_store, _settings, writer, foreground, Quit, OpenLibrary, organizer, _ocr, _links);
+        _library = new LibraryWindow(_store, _settings, writer, new ForegroundTracker(), () => _shelves.ShowShelves(), Quit, organizer, _ocr, _visual, _links);
 
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
@@ -92,6 +94,7 @@ public partial class App : Application
             _store.RetentionDays = _settings.Current.RetentionDays;
             ApplyGlobalShortcuts();
             ConfigureFolders();
+            if (_settings.Current.FetchLinkMetadata) _links.RequestAll();
         };
         _store.RecentFolderUsed += (_, folder) => _settings.Update(s =>
         {
@@ -109,6 +112,7 @@ public partial class App : Application
         {
             if (_settings.Current.IndexImages) _ocr.Enqueue(_store.Items);
             _visual.Start();
+            _links.RequestAll();
         }, DispatcherPriority.ApplicationIdle);
 
         new Thread(() =>
@@ -119,6 +123,26 @@ public partial class App : Application
 
 #if DEBUG
         // Development aid: --snapshot <library|shelves> <png> renders a window off-screen without taking focus, then exits.
+        if (e.Args is ["--links", var linkOutput, .. var urls])
+        {
+            // Development aid: looks up links into the dev library and reports what each page gave, then exits.
+            var ids = urls.Select(u => _store.InsertLink(u).Id).ToList();
+            _store.ResetLinkLookup(ids);
+            _links.Request(ids);
+            var begun = DateTime.UtcNow;
+            var wait = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+            wait.Tick += (_, _) =>
+            {
+                var items = ids.Select(_store.Find).OfType<ClipItem>().ToList();
+                if (items.Any(i => i.LinkMetadataState == "") && DateTime.UtcNow - begun < TimeSpan.FromSeconds(40)) return;
+                wait.Stop();
+                File.WriteAllLines(linkOutput, items.Select(i =>
+                    $"{i.Url}{Environment.NewLine}  state={i.LinkMetadataState} title={i.Title} | site={i.LinkSiteName} | author={i.LinkAuthor} | thumb={(i.LinkThumbnailFile.Length > 0 ? new FileInfo(_store.Media.PathOf(i.LinkThumbnailFile)).Length + " bytes" : "none")}"));
+                Shutdown();
+            };
+            wait.Start();
+            return;
+        }
         if (e.Args is ["--clip-check", var clipOutput])
         {
             // Development aid: checks the bundled MobileCLIP export (ranking and speed), then exits.
@@ -224,7 +248,7 @@ public partial class App : Application
             switch (content.Kind)
             {
                 case ClipKind.Link when settings.CaptureLinks:
-                    _store.InsertLink(content.Text);
+                    _links?.Request([_store.InsertLink(content.Text).Id]);
                     break;
                 case ClipKind.Link when settings.CaptureText:
                 case ClipKind.Text when settings.CaptureText:
@@ -384,6 +408,7 @@ public partial class App : Application
         _clipboard?.Dispose();
         _folders?.Dispose();
         _visual?.Dispose();
+        _links?.Dispose();
         _messages?.Dispose();
         _tray?.Dispose();
         _store?.Dispose();

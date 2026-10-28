@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Data.Sqlite;
 using Pegline.Core.Capture;
@@ -752,19 +752,56 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// Stores what the page says about itself. A name the user gave always wins (it is a separate field); a
+    /// lookup that finds no image keeps the previous one. Ignored when the link was trashed meanwhile.
+    /// </summary>
     public void SetLinkMetadata(Guid id, string title, string siteName, string author, string thumbnailFile)
     {
         lock (_gate)
         {
-            if (!_byId.TryGetValue(id, out var item) || item.Kind != ItemKind.Link) return;
+            if (!_byId.TryGetValue(id, out var item) || item.Kind != ItemKind.Link || item.IsTrashed) return;
+            var now = _clock();
             Mutate([item], i =>
             {
                 i.Title = Limit(title, 500);
                 i.LinkSiteName = Limit(siteName, 200);
                 i.LinkAuthor = Limit(author, 200);
-                i.LinkThumbnailFile = thumbnailFile;
+                if (thumbnailFile.Length > 0) i.LinkThumbnailFile = thumbnailFile;
+                i.LinkMetadataState = "ready";
+                i.LinkMetadataAttemptedAt = now;
+                i.UpdatedAt = now; // the title is searchable content
+            });
+            // A replaced thumbnail is collected with the next permanent delete, never here: another lookup may
+            // have stored its image but not attached it yet.
+        }
+    }
+
+    /// <summary>Records a lookup that failed ("failed", retried later) or may not run ("blocked").</summary>
+    public void MarkLinkLookup(Guid id, string state)
+    {
+        lock (_gate)
+        {
+            if (!_byId.TryGetValue(id, out var item) || item.Kind != ItemKind.Link) return;
+            if (item.LinkMetadataState == state && state == "blocked") return;
+            var now = _clock();
+            Mutate([item], i =>
+            {
+                i.LinkMetadataState = state;
+                i.LinkMetadataAttemptedAt = now;
             });
         }
+    }
+
+    /// <summary>Refresh link preview: forgets earlier attempts so the next lookup runs now.</summary>
+    public void ResetLinkLookup(IEnumerable<Guid> ids)
+    {
+        lock (_gate)
+            Mutate([.. ids.Select(_byId.GetValueOrDefault).OfType<ClipItem>().Where(i => i.Kind == ItemKind.Link)], i =>
+            {
+                i.LinkMetadataState = "";
+                i.LinkMetadataAttemptedAt = null;
+            });
     }
 
     public string MediaPath(ClipItem item, bool original = false) =>

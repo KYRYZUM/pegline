@@ -59,12 +59,14 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private readonly Organizer _organizer;
     private readonly Capture.OcrService _ocr;
     private readonly Search.VisualSearchService _visual;
+    private readonly Links.LinkPreviewService _links;
     private readonly LibraryFilterPanel _filters;
     private Border? _filterButton;
     private bool _quitting;
 
-    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer, Capture.OcrService ocr, Search.VisualSearchService visual)
+    public LibraryWindow(LibraryStore store, SettingsStore settings, ClipboardWriter writer, ForegroundTracker foreground, Action showShelves, Action quit, Organizer organizer, Capture.OcrService ocr, Search.VisualSearchService visual, Links.LinkPreviewService links)
     {
+        _links = links;
         _organizer = organizer;
         _ocr = ocr;
         _visual = visual;
@@ -647,10 +649,25 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 if (ids is [var recognized]) CopyRecognizedText(recognized);
                 else Notify(Loc.T("Select one image first"));
                 break;
+            case "refreshLink":
+                RefreshLinks(ids);
+                break;
             default:
                 Notify(Loc.T("Coming soon"));
                 break;
         }
+    }
+
+    private void RefreshLinks(IReadOnlyList<Guid> ids)
+    {
+        var links = ids.Where(id => _store.Find(id) is { Kind: ItemKind.Link }).ToList();
+        if (links.Count == 0)
+        {
+            Notify(Loc.T("Select a link first"));
+            return;
+        }
+        _links.Request(links, force: true);
+        Notify(Loc.T("Refreshing link preview…"));
     }
 
     /// <summary>Pin to folder, name and pin, add tag or export for the captured ids.</summary>
@@ -791,6 +808,9 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 break;
             case "deletePermanently":
                 ConfirmDeletePermanently();
+                break;
+            case "refreshLink":
+                RefreshLinks(_model.ActionIds);
                 break;
         }
     }
@@ -973,7 +993,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.toggleFullscreen", "menu.clearFilters", "menu.sortNewest", "menu.sortOldest", "menu.sortTitle", "menu.sortTitleDescending",
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.searchVisual", "menu.filters", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
-        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR",
+        "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink",
         "menu.openScreenshotsFolder", "menu.resetZoom",
     ];
 
@@ -1331,6 +1351,9 @@ internal sealed class LibraryWindow : Window, IPreviewHost
                 return true;
             case "copyOCR":
                 CopyRecognizedText(current.Id);
+                return true;
+            case "refreshLink":
+                RefreshLinks([current.Id]);
                 return true;
             default:
                 return false;

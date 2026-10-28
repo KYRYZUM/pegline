@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -36,7 +36,7 @@ public partial class ShelfWindow : IPreviewHost
         "menu.copyLatestImage", "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.openScreenshotsFolder",
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
-        "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR",
+        "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink",
     ];
 
     Keymap IPreviewHost.Keymap => _keymap;
@@ -160,6 +160,9 @@ public partial class ShelfWindow : IPreviewHost
                 return Run("library", gesture);
             case "copyOCR":
                 CopyRecognizedText();
+                return true;
+            case "refreshLink":
+                RefreshLinks();
                 return true;
             default:
                 return false;
@@ -326,6 +329,20 @@ public partial class ShelfWindow : IPreviewHost
     }
 
     /// <summary>Ctrl+Shift+C: copies the text Windows OCR reads in the image, recognizing it now if needed. Browsing stays open.</summary>
+    /// <summary>Refresh link preview: looks the shown or selected links up again.</summary>
+    private void RefreshLinks()
+    {
+        IReadOnlyList<ClipItem> targets = _preview is { IsOpen: true, Item: { } shown } && _store.Find(shown.Id) is { } item ? [item] : _nav.SelectedItems();
+        var links = targets.Where(i => i.Kind == ItemKind.Link).Select(i => i.Id).ToList();
+        if (links.Count == 0)
+        {
+            ShowToast(Loc.T("Select a link first"));
+            return;
+        }
+        _links.Request(links, force: true);
+        ShowToast(Loc.T("Refreshing link preview…"));
+    }
+
     private async void CopyRecognizedText()
     {
         var target = _preview is { IsOpen: true, Item: { } shown } ? _store.Find(shown.Id) : _nav.FocusedItem;

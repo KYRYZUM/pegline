@@ -43,6 +43,7 @@ internal sealed class TrayIcon : IDisposable
         menu.Items.Add(Toggle(Loc.T("Capture copied links"), current.CaptureLinks, value => _settings.Update(s => s.CaptureLinks = value)));
         menu.Items.Add(Toggle(Loc.T("Collect the Windows Screenshots folder"), current.CaptureScreenshots, value => _settings.Update(s => s.CaptureScreenshots = value)));
         menu.Items.Add(Toggle(Loc.T("Show shelves after a screenshot"), current.OpenAfterScreenshot, value => _settings.Update(s => s.OpenAfterScreenshot = value)));
+        menu.Items.Add(Toggle(Loc.T("Show link titles and previews"), current.FetchLinkMetadata, value => _settings.Update(s => s.FetchLinkMetadata = value)));
         menu.Items.Add(Toggle(Loc.T("Index images for search"), current.IndexImages, value => _settings.Update(s => s.IndexImages = value)));
         menu.Items.Add(WatchedFolders(current.WatchFolders));
         menu.Items.Add(new ToolStripSeparator());
