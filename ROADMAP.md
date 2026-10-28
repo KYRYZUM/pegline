@@ -78,7 +78,7 @@ Goal: a Windows-native counterpart of every user-facing feature in ClipBoardLine
 - [x] Release workflow on `v*` tags (tests, models, delta, publish); local `scripts/pack.ps1`
 - [x] Logo: app / installer icon (dark rounded tile), transparent tray icon, logo in Settings and on the installer splash
 - [ ] Code-signing certificate (unsigned for now; SmartScreen warning)
-- [~] Live acceptance: install and uninstall tried (0.1.0); in-app update to be confirmed
+- [x] Live acceptance: install and uninstall tried (0.1.0); in-app updates 0.1.0 → 0.1.1 → 0.1.2 confirmed
 
 ## 0.1.1 — Fixes from the first hands-on round
 - [x] Crisp text on the shelves: the shadow is drawn apart from the card's content, text and link cards hang straight (only images hang askew)
