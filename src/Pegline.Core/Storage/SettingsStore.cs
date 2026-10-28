@@ -39,11 +39,12 @@ public sealed class SettingsStore
     private AppSettings Load()
     {
         if (!File.Exists(_file))
-            return new AppSettings();
+            return new AppSettings { Version = AppSettings.CurrentVersion };
         try
         {
             var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_file), Json) ?? new AppSettings();
             Validate(settings);
+            if (Migrate(settings)) Write(settings);
             return settings;
         }
         catch (Exception ex) when (ex is JsonException or ArgumentException)
@@ -52,6 +53,20 @@ public sealed class SettingsStore
             File.Copy(_file, _file + ".unreadable", overwrite: true);
             return new AppSettings();
         }
+    }
+
+    /// <summary>Upgrades an older file. Returns true when something changed and the file should be rewritten.</summary>
+    private static bool Migrate(AppSettings settings)
+    {
+        if (settings.Version >= AppSettings.CurrentVersion) return false;
+        // Version 0 shipped with image and text capture off and no way to turn them on besides the tray.
+        if (settings.Version < 1)
+        {
+            settings.CaptureText = true;
+            settings.CaptureImages = true;
+        }
+        settings.Version = AppSettings.CurrentVersion;
+        return true;
     }
 
     private static void Validate(AppSettings settings)

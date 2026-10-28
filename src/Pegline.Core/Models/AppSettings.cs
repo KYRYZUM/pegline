@@ -13,14 +13,19 @@ public enum CardSize
     Large,
 }
 
-/// <summary>User preferences. Defaults match the reference product: image/text capture off, link capture and enrichment on.</summary>
+/// <summary>User preferences. Images, text and links are all captured by default.</summary>
 public sealed class AppSettings
 {
+    /// <summary>Schema version of the saved file; older files are upgraded once on load.</summary>
+    public const int CurrentVersion = 1;
+
+    public int Version { get; set; }
+
     public static readonly string[] Languages = ["system", "en", "tr", "es", "fr", "pt-BR", "az", "zh-Hans", "ja", "ko"];
 
     public List<ItemKind> VisibleKinds { get; set; } = [ItemKind.Image, ItemKind.Text, ItemKind.Link];
-    public bool CaptureText { get; set; }
-    public bool CaptureImages { get; set; }
+    public bool CaptureText { get; set; } = true;
+    public bool CaptureImages { get; set; } = true;
     public bool CaptureLinks { get; set; } = true;
     public bool FetchLinkMetadata { get; set; } = true;
     public bool IndexImages { get; set; } = true;
