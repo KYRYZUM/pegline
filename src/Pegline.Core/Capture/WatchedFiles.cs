@@ -1,4 +1,4 @@
-namespace Pegline.Core.Capture;
+﻿namespace Pegline.Core.Capture;
 
 /// <summary>Which files a watched folder collects, and how a saved screenshot is matched to its clipboard copy.</summary>
 public static class WatchedFiles
@@ -6,6 +6,18 @@ public static class WatchedFiles
     public const long MaxImageBytes = 64L * 1024 * 1024;
 
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase) { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff" };
+
+    /// <summary>Screen recordings (Snipping Tool, OBS, Xbox Game Bar, QuickTime exports).</summary>
+    public const long MaxVideoBytes = 2L * 1024 * 1024 * 1024;
+
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mov", ".m4v" };
+
+    public static bool IsVideo(string path) =>
+        VideoExtensions.Contains(Path.GetExtension(path))
+        && !Path.GetFileName(path).StartsWith('.')
+        && !Path.GetFileName(path).StartsWith("~$", StringComparison.Ordinal);
+
+    public static bool IsMedia(string path) => IsImage(path) || IsVideo(path);
 
     public static bool IsImage(string path) =>
         ImageExtensions.Contains(Path.GetExtension(path))

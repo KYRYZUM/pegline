@@ -1,4 +1,4 @@
-using Pegline.Core.Capture;
+﻿using Pegline.Core.Capture;
 using Pegline.Core.Library;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
@@ -39,11 +39,11 @@ public sealed class CaptureSourceTests : IDisposable
     }
 
     [Fact]
-    public void OnlyImageFilesAreTakenFromCopiedFiles()
+    public void OnlyImageAndVideoFilesAreTakenFromCopiedFiles()
     {
-        var copied = ClipboardAdmission.CopiedImages([@"C:\a\photo.jpg", @"C:\a\notes.docx", @"C:\a\PHOTO.JPG", @"C:\a\shot.png"]);
-        Assert.Equal([@"C:\a\photo.jpg", @"C:\a\shot.png"], copied);
-        Assert.Equal(ClipboardAdmission.MaxCopiedFiles, ClipboardAdmission.CopiedImages(Enumerable.Range(0, 50).Select(i => $@"C:\a\{i}.png")).Count);
+        var copied = ClipboardAdmission.CopiedMedia([@"C:\a\photo.jpg", @"C:\a\notes.docx", @"C:\a\PHOTO.JPG", @"C:\a\shot.png", @"C:\a\clip.MOV", @"C:\a\song.mp3"]);
+        Assert.Equal([@"C:\a\photo.jpg", @"C:\a\shot.png", @"C:\a\clip.MOV"], copied);
+        Assert.Equal(ClipboardAdmission.MaxCopiedFiles, ClipboardAdmission.CopiedMedia(Enumerable.Range(0, 50).Select(i => $@"C:\a\{i}.png")).Count);
     }
 
     [Fact]

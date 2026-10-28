@@ -64,6 +64,10 @@ public sealed class ClipItem
     public string RenderedVideoFile { get; set; } = "";
     public double DurationSeconds { get; set; }
 
+    /// <summary>The kept part of a trimmed recording, in seconds of the original; null when untrimmed.</summary>
+    public double? TrimStartSeconds { get; set; }
+    public double? TrimEndSeconds { get; set; }
+
     /// <summary>Original file path for items collected from a watched folder; never deleted by the app.</summary>
     public string SourcePath { get; set; } = "";
 
@@ -77,6 +81,12 @@ public sealed class ClipItem
     public string DisplayFile => string.IsNullOrEmpty(RenderedFile) ? ImageFile : RenderedFile;
 
     public string DisplayTitle => Name.Length > 0 ? Name : Title;
+
+    /// <summary>The recording as it is shown, copied and exported: the trimmed copy when there is one.</summary>
+    public string CurrentVideoFile => RenderedVideoFile.Length > 0 ? RenderedVideoFile : VideoFile;
+
+    /// <summary>Length of what plays: the trimmed part, or the whole recording.</summary>
+    public double ShownDuration => RenderedVideoFile.Length > 0 && TrimStartSeconds is { } start && TrimEndSeconds is { } end ? end - start : DurationSeconds;
 
     /// <summary>A still image whose current pixels have not been through text recognition yet.</summary>
     public bool NeedsOcr => Kind == ItemKind.Image && !Recording && !IsTrashed && DisplayFile.Length > 0 && OcrSource != DisplayFile;

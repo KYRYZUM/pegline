@@ -81,11 +81,12 @@ public partial class App : Application
         _messages = new MessageWindow();
         _clipboard = new ClipboardMonitor(_messages);
         _clipboard.Captured += (_, content) => Capture(content);
+        _library.FilesDropped += (_, paths) => CollectCopiedFiles(paths, intoLibrary: true);
         _hotKeys = new HotKeyService(_messages);
         _hotKeys.Pressed += (_, action) => OnGlobalShortcut(action);
         _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, Quit);
         ApplyGlobalShortcuts();
-        _folders = new FolderWatcher(Dispatcher, CollectFile);
+        _folders = new FolderWatcher(Dispatcher, CollectFile, path => _ = CollectRecording(path));
         ConfigureFolders();
 
         _settings.Changed += (_, _) =>
@@ -271,11 +272,22 @@ public partial class App : Application
     }
 
     /// <summary>Image files copied in Explorer or a chat app; they are read off the UI thread, the originals stay untouched.</summary>
-    private async void CollectCopiedFiles(IReadOnlyList<string> files)
+    /// <param name="intoLibrary">Files dropped on the Library are saved there and do not pull up the shelves.</param>
+    private async void CollectCopiedFiles(IReadOnlyList<string> files, bool intoLibrary = false)
     {
         ClipItem? last = null;
+        var added = new List<Guid>();
         foreach (var path in files)
         {
+            if (WatchedFiles.IsVideo(path))
+            {
+                if (_store is not null && await Recordings.ImportAsync(_store, Dispatcher, path) is { } recording)
+                {
+                    last = recording;
+                    added.Add(recording.Id);
+                }
+                continue;
+            }
             byte[]? png;
             try
             {
@@ -290,6 +302,7 @@ public partial class App : Application
             try
             {
                 last = _store.InsertImage(png, path);
+                added.Add(last.Id);
                 if (_settings?.Current.IndexImages == true) _ocr?.Enqueue(last);
             }
             catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or InvalidDataException or IOException)
@@ -297,7 +310,19 @@ public partial class App : Application
                 Log(ex);
             }
         }
-        if (last is not null) Collected(last, crop: false);
+        if (intoLibrary)
+        {
+            if (added.Count > 0) _store?.Retain(added);
+            _library?.FilesAdded(added.Count, files.Count);
+        }
+        else if (last is not null) Collected(last, crop: false);
+    }
+
+    /// <summary>A finished recording in a watched folder (or the Snipping Tool's Screen Recordings folder).</summary>
+    private async Task CollectRecording(string path)
+    {
+        if (_store is null || _settings is null || !_settings.Current.CaptureImages) return;
+        if (await Recordings.ImportAsync(_store, Dispatcher, path) is { } recording) Collected(recording, crop: false);
     }
 
     private void OnGlobalShortcut(string action)
@@ -376,7 +401,11 @@ public partial class App : Application
     {
         if (_settings is null || _folders is null) return;
         var folders = new List<string>();
-        if (_settings.Current.CaptureScreenshots) folders.Add(FolderWatcher.ScreenshotsFolder);
+        if (_settings.Current.CaptureScreenshots)
+        {
+            folders.Add(FolderWatcher.ScreenshotsFolder);
+            folders.Add(FolderWatcher.ScreenRecordingsFolder);
+        }
         folders.AddRange(_settings.Current.WatchFolders);
         var key = string.Join("|", folders);
         if (key == _watchedKey) return;

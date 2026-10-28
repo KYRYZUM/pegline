@@ -170,6 +170,27 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         _inspector.Notice += (_, text) => Notify(text);
 
         PreviewKeyDown += OnKey;
+        // Image and video files dropped from Explorer are added to the Library (saved).
+        AllowDrop = true;
+        DragOver += (_, e) =>
+        {
+            if (e.Handled || !IsFileDrop(e.Data)) return;
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        };
+        Drop += (_, e) =>
+        {
+            if (e.Handled || !IsFileDrop(e.Data) || e.Data.GetData(DataFormats.FileDrop) is not string[] paths) return;
+            e.Handled = true;
+            var media = Core.Capture.ClipboardAdmission.CopiedMedia(paths);
+            if (media.Count == 0)
+            {
+                Notify(Loc.T("Only images and MP4 / MOV videos can be added"));
+                return;
+            }
+            Notify(Loc.F("Adding {0} files…", media.Count));
+            FilesDropped?.Invoke(this, media);
+        };
         Closing += (_, e) =>
         {
             if (_quitting) return;
@@ -182,6 +203,18 @@ internal sealed class LibraryWindow : Window, IPreviewHost
             DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE
         };
         ApplyPanes();
+    }
+
+    /// <summary>Image or video files dropped on the Library (already filtered to media, at most 20).</summary>
+    public event EventHandler<IReadOnlyList<string>>? FilesDropped;
+
+    /// <summary>Files from Explorer, not records dragged within Pegline.</summary>
+    private static bool IsFileDrop(IDataObject data) => data.GetDataPresent(DataFormats.FileDrop) && !data.GetDataPresent(Platform.DragOut.IdsFormat);
+
+    public void FilesAdded(int added, int dropped)
+    {
+        Notify(added == dropped ? Loc.F("Added {0} files to the Library", added) : Loc.F("Added {0} of {1} files; the rest could not be read", added, dropped));
+        if (_model.Query.Scope.Kind is not (LibraryScopeKind.Saved or LibraryScopeKind.Recent)) ChooseScope(LibraryScope.Saved);
     }
 
     [DllImport("dwmapi.dll")]

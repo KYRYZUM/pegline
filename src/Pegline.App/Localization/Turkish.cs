@@ -379,5 +379,9 @@ internal static class Turkish
         ["Refreshing link preview…"] = "Link önizlemesi yenileniyor…",
         ["Preview unavailable; your link is saved"] = "Önizleme alınamadı; linkin kayıtlı",
         ["No preview is fetched for local, non-HTTPS or token-bearing links"] = "Yerel, HTTPS olmayan ya da anahtar/jeton içeren linkler için önizleme alınmaz",
+        ["Only images and MP4 / MOV videos can be added"] = "Yalnızca görseller ve MP4 / MOV videolar eklenebilir",
+        ["Adding {0} files…"] = "{0} dosya ekleniyor…",
+        ["Added {0} files to the Library"] = "{0} dosya Kütüphaneye eklendi",
+        ["Added {0} of {1} files; the rest could not be read"] = "{1} dosyadan {0} tanesi eklendi; diğerleri okunamadı",
     };
 }

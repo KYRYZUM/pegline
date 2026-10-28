@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
 
@@ -160,6 +160,7 @@ public sealed class LibraryStoreTests : IDisposable
     public void PermanentDeletionRemovesUnreferencedMedia()
     {
         using var store = Open();
+        store.Media.CleanupGrace = TimeSpan.Zero;
         var image = store.InsertImage(TestImages.Png(2, 2));
         var path = store.MediaPath(image);
         Assert.Throws<InvalidOperationException>(() => store.DeletePermanently([image.Id]));

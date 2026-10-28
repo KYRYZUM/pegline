@@ -742,6 +742,64 @@ public sealed class LibraryStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// A screen recording on the Images shelf: the managed video, its poster frame and size. The same video
+    /// collected again moves its record to the front instead of adding a copy.
+    /// </summary>
+    public ClipItem InsertRecording(string videoFile, byte[] posterPng, double durationSeconds, string sourcePath = "")
+    {
+        if (videoFile.Length == 0 || !double.IsFinite(durationSeconds) || durationSeconds <= 0) throw new ArgumentException("Invalid recording.");
+        var (width, height) = MediaStore.ReadPngSize(posterPng);
+        var poster = Media.PutPng(posterPng);
+        lock (_gate)
+        {
+            var prior = _items.Where(i => i.Recording && !i.IsTrashed && i.VideoFile == videoFile).OrderByDescending(i => i.UpdatedAt).FirstOrDefault();
+            if (prior is null) EnsureCapacity();
+            var now = _clock();
+            ClipItem result = null!;
+            Commit(tx =>
+            {
+                var item = prior is null ? new ClipItem { Kind = ItemKind.Image, Recording = true, VideoFile = videoFile } : tx.Touch(prior);
+                if (prior is null) tx.Add(item);
+                item.ImageFile = poster;
+                item.PixelWidth = width;
+                item.PixelHeight = height;
+                item.DurationSeconds = durationSeconds;
+                if (item.SourcePath.Length == 0) item.SourcePath = sourcePath;
+                item.CreatedAt = now;
+                item.UpdatedAt = now;
+                item.HiddenFromShelf = false;
+                item.CaptureRevision = Guid.NewGuid();
+                ExpireInto(tx, now);
+                result = item;
+            });
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Keeps a trimmed copy next to the untouched original (<paramref name="renderedVideo"/> null goes back to
+    /// the original). The poster follows the trimmed start.
+    /// </summary>
+    public void SetRecordingTrim(Guid id, string? renderedVideo, byte[]? posterPng, double? start, double? end)
+    {
+        var poster = posterPng is null ? "" : Media.PutPng(posterPng);
+        lock (_gate)
+        {
+            if (!_byId.TryGetValue(id, out var item) || !item.Recording) throw new InvalidOperationException("Select a video first");
+            var now = _clock();
+            Mutate([item], i =>
+            {
+                i.RenderedVideoFile = renderedVideo ?? "";
+                i.RenderedFile = renderedVideo is null ? "" : poster;
+                i.TrimStartSeconds = renderedVideo is null ? null : start;
+                i.TrimEndSeconds = renderedVideo is null ? null : end;
+                i.UpdatedAt = now;
+            });
+            Media.DeleteUnreferenced(ReferencedMedia());
+        }
+    }
+
     /// <summary>Records the file an image came from (a screenshot saved to disk) when it has none yet.</summary>
     public void AttachSource(Guid id, string path)
     {

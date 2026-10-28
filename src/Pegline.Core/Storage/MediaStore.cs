@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 
@@ -51,7 +51,10 @@ public sealed partial class MediaStore
         var name = Convert.ToHexStringLower(SHA256.HashData(bytes)) + extension;
         var destination = PathOf(name);
         if (File.Exists(destination))
+        {
+            Refresh(destination);
             return name;
+        }
         var temporary = Path.Combine(Directory, "." + Guid.NewGuid().ToString("N") + ".tmp");
         try
         {
@@ -99,6 +102,8 @@ public sealed partial class MediaStore
             var destination = PathOf(name);
             if (!File.Exists(destination))
                 File.Move(temporary, destination);
+            else
+                Refresh(destination);
             return name;
         }
         finally
@@ -108,14 +113,35 @@ public sealed partial class MediaStore
         }
     }
 
+    /// <summary>How long a newly stored file is safe from cleanup while its record is being updated.</summary>
+    public TimeSpan CleanupGrace { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>Storing existing content again counts as new for the cleanup grace period.</summary>
+    private static void Refresh(string path)
+    {
+        try
+        {
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
     /// <summary>Deletes managed files that no record references any more.</summary>
     public int DeleteUnreferenced(IReadOnlySet<string> referenced)
     {
         var deleted = 0;
+        // A file stored moments ago may not be attached to its record yet (a link preview, a trim, an import
+        // finishing on another thread); it is collected by a later cleanup if it stays unreferenced.
+        var settled = DateTime.UtcNow - CleanupGrace;
         foreach (var file in System.IO.Directory.EnumerateFiles(Directory))
         {
             var name = Path.GetFileName(file);
-            if (!IsManagedName(name) || referenced.Contains(name))
+            if (!IsManagedName(name) || referenced.Contains(name) || File.GetLastWriteTimeUtc(file) > settled)
                 continue;
             try
             {

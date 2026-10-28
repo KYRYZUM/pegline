@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -80,6 +80,10 @@ internal sealed class PreviewWindow : FloatingWindow
     private readonly TextBlock _linkDetail = new();
     private readonly TextBlock _linkAddress = new();
 
+    // Recording
+    private readonly VideoPlayer _player;
+    private bool _builtRecording;
+
     private ClipItem? _item;
     private ItemKind? _built;
     private string _positionText = "";
@@ -123,6 +127,11 @@ internal sealed class PreviewWindow : FloatingWindow
             UpdateStatus();
         };
 
+        _player = new VideoPlayer(palette) { Visibility = Visibility.Collapsed };
+        var playerMenu = new ContextMenu();
+        playerMenu.Items.Add(MenuItem(Loc.T("Trim video"), () => _host.Forward("trimVideo", "")));
+        playerMenu.Items.Add(MenuItem(Loc.T("Close preview"), () => Close()));
+        _player.ContextMenu = playerMenu;
         ConfigureImage();
         ConfigureText();
         ConfigureLink();
@@ -136,7 +145,10 @@ internal sealed class PreviewWindow : FloatingWindow
     public ClipItem? Item => _item;
 
     /// <summary>True when the image changed on disk (markup or crop saved) and must be presented again.</summary>
-    public bool NeedsReload(ClipItem item) => item.Kind == ItemKind.Image && _built == ItemKind.Image && item.DisplayFile != _imageFile;
+    public bool NeedsReload(ClipItem item) => item.Kind == ItemKind.Image && _built == ItemKind.Image && ShownFile(item) != _imageFile;
+
+    /// <summary>What the preview shows: the current video of a recording, the current pixels of an image.</summary>
+    private static string ShownFile(ClipItem item) => item.Recording ? item.CurrentVideoFile : item.DisplayFile;
 
     public bool IsTextEditing { get; private set; }
 
@@ -149,7 +161,7 @@ internal sealed class PreviewWindow : FloatingWindow
     {
         var changed = _item?.Id != item.Id || _built != item.Kind || !IsOpen || NeedsReload(item);
         if (changed && !FlushEdits()) return false;
-        if (_built != item.Kind) Build(item.Kind);
+        if (_built != item.Kind || item.Kind == ItemKind.Image && _builtRecording != item.Recording) Build(item.Kind, item.Recording);
         _item = item;
         _positionText = position;
         if (!changed)
@@ -164,6 +176,15 @@ internal sealed class PreviewWindow : FloatingWindow
         var workHeight = (work.Bottom - work.Top) / placement.Scale;
         switch (item.Kind)
         {
+            case ItemKind.Image when item.Recording:
+                var video = _store.Media.PathOf(item.CurrentVideoFile);
+                if (item.CurrentVideoFile.Length == 0 || !File.Exists(video)) return false;
+                _imageFile = item.CurrentVideoFile;
+                double frameWidth = Math.Max(1, item.PixelWidth) / placement.Scale, frameHeight = Math.Max(1, item.PixelHeight) / placement.Scale;
+                var frameFit = Math.Min(1, Math.Min(workWidth * 0.8 / frameWidth, (workHeight * 0.8 - VideoPlayer.BarHeight) / frameHeight));
+                size = new Size(Math.Max(480, frameWidth * frameFit), Math.Max(300, frameHeight * frameFit + VideoPlayer.BarHeight));
+                _player.Load(video, autoplay: true);
+                break;
             case ItemKind.Image:
                 var source = Decode(_store.MediaPath(item));
                 if (source is null) return false;
@@ -280,6 +301,7 @@ internal sealed class PreviewWindow : FloatingWindow
         }
         _saveTimer.Stop();
         _statusTimer.Stop();
+        _player.Unload();
         base.OnClosing(e);
     }
 
@@ -291,9 +313,11 @@ internal sealed class PreviewWindow : FloatingWindow
 
     // ----- Layout -----
 
-    private void Build(ItemKind kind)
+    private void Build(ItemKind kind, bool recording = false)
     {
         _built = kind;
+        _builtRecording = kind == ItemKind.Image && recording;
+        _player.Unload();
         _layout.Children.Clear();
         _layout.RowDefinitions.Clear();
         _surface.Padding = new Thickness(0);
@@ -302,6 +326,11 @@ internal sealed class PreviewWindow : FloatingWindow
         BuildControls(kind);
         switch (kind)
         {
+            case ItemKind.Image when _builtRecording:
+                _player.Visibility = Visibility.Visible;
+                _layout.Children.Add(_player);
+                _layout.Children.Add(_controls);
+                break;
             case ItemKind.Image:
                 _layout.Children.Add(_imageScroll);
                 _layout.Children.Add(_controls);
@@ -366,7 +395,9 @@ internal sealed class PreviewWindow : FloatingWindow
             _editLabel = (TextBlock)content.Children[1];
             _buttons.Children.Add(edit);
         }
-        if (kind == ItemKind.Image)
+        if (kind == ItemKind.Image && _builtRecording)
+            _buttons.Children.Add(IconButton("", Loc.T("Trim video"), () => _host.Forward("trimVideo", "")));
+        else if (kind == ItemKind.Image)
             _buttons.Children.Add(IconButton(Glyphs.Markup, Loc.T("Markup image"), () => _host.Forward("markup", "")));
         _buttons.Children.Add(IconButton(Glyphs.Command, Loc.T("Actions") + Hint("actions"), () => _host.Forward("actions", "")));
         _buttons.Children.Add(IconButton(Glyphs.Close, Loc.T("Close preview"), () => Close()));
@@ -436,7 +467,7 @@ internal sealed class PreviewWindow : FloatingWindow
     private void UpdateControls()
     {
         var position = _positionText;
-        if (_built == ItemKind.Image && _zoom.Percent != 100) position += $" · {_zoom.Percent}%";
+        if (_built == ItemKind.Image && !_builtRecording && _zoom.Percent != 100) position += $" · {_zoom.Percent}%";
         _position.Text = position;
         if (_pinGlyph is not null && _item is not null)
         {
@@ -707,8 +738,16 @@ internal sealed class PreviewWindow : FloatingWindow
             return;
         }
 
+        // K plays or pauses a recording (as in most video players).
+        if (_builtRecording && gesture == "K")
+        {
+            _player.TogglePlay();
+            e.Handled = true;
+            return;
+        }
+
         // In an image preview, Ctrl+Z / Ctrl+Shift+Z step through this session's markup and crop results.
-        if (_built == ItemKind.Image && gesture is "Ctrl+Z" or "Ctrl+Shift+Z" or "Ctrl+Y"
+        if (_built == ItemKind.Image && !_builtRecording && gesture is "Ctrl+Z" or "Ctrl+Shift+Z" or "Ctrl+Y"
             && _host.Forward(gesture == "Ctrl+Z" ? "markupUndo" : "markupRedo", gesture))
         {
             e.Handled = true;

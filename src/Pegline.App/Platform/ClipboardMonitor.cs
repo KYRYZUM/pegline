@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -103,7 +103,7 @@ internal sealed class ClipboardMonitor : IDisposable
 
             // Image files copied in Explorer or a chat app: the originals beat any thumbnail next to them.
             var files = formats.Contains(Win32.CF_HDROP);
-            if (files && ClipboardAdmission.CopiedImages(ReadFiles()) is { Count: > 0 } images)
+            if (files && ClipboardAdmission.CopiedMedia(ReadFiles()) is { Count: > 0 } images)
                 return new ClipboardContent(ClipKind.Files, "", null, images);
 
             var text = formats.Contains(Win32.CF_UNICODETEXT) ? ReadText() : null;

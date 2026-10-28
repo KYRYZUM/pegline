@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -15,16 +15,22 @@ internal sealed class FolderWatcher : IDisposable
     private static readonly Guid ScreenshotsFolderId = new("b7bede81-df94-4682-a7d8-57a52620b86f");
     private readonly Dispatcher _dispatcher;
     private readonly Action<byte[], string> _collected;
+    private readonly Action<string> _recording;
     private readonly List<FileSystemWatcher> _watchers = [];
     private readonly Dictionary<string, CancellationTokenSource> _pending = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock _gate = new();
 
     /// <param name="collected">Runs on the UI thread with the PNG bytes and the original path.</param>
-    public FolderWatcher(Dispatcher dispatcher, Action<byte[], string> collected)
+    /// <param name="recording">Runs on the UI thread with the path of a finished MP4 / MOV recording.</param>
+    public FolderWatcher(Dispatcher dispatcher, Action<byte[], string> collected, Action<string> recording)
     {
         _dispatcher = dispatcher;
         _collected = collected;
+        _recording = recording;
     }
+
+    /// <summary>Where the Snipping Tool saves screen recordings. Game clip folders (Captures, NVIDIA) are left alone.</summary>
+    public static string ScreenRecordingsFolder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Screen Recordings");
 
     [DllImport("shell32.dll")]
     private static extern int SHGetKnownFolderPath(ref Guid id, uint flags, IntPtr token, out IntPtr path);
@@ -82,7 +88,7 @@ internal sealed class FolderWatcher : IDisposable
 
     private void Schedule(string path)
     {
-        if (!WatchedFiles.IsImage(path)) return;
+        if (!WatchedFiles.IsMedia(path)) return;
         CancellationTokenSource token;
         lock (_gate)
         {
@@ -92,11 +98,14 @@ internal sealed class FolderWatcher : IDisposable
         _ = CollectAsync(path, token.Token);
     }
 
-    /// <summary>A file still being written restarts its quiet period.</summary>
+    /// <summary>
+    /// A file still being written restarts its quiet period. A recording is written for minutes and may have
+    /// outlasted earlier attempts, so any change to one schedules it again.
+    /// </summary>
     private void Reschedule(string path)
     {
         lock (_gate)
-            if (!_pending.ContainsKey(path)) return;
+            if (!_pending.ContainsKey(path) && !WatchedFiles.IsVideo(path)) return;
         Schedule(path);
     }
 
@@ -109,6 +118,13 @@ internal sealed class FolderWatcher : IDisposable
             {
                 try
                 {
+                    if (WatchedFiles.IsVideo(path))
+                    {
+                        if (!IsFinishedVideo(path)) return;
+                        lock (_gate) _pending.Remove(path);
+                        await _dispatcher.InvokeAsync(() => _recording(path));
+                        return;
+                    }
                     var png = ReadAsPng(path);
                     if (png is null) return;
                     lock (_gate) _pending.Remove(path);
@@ -129,6 +145,18 @@ internal sealed class FolderWatcher : IDisposable
         {
             App.Log(ex);
         }
+    }
+
+    /// <summary>
+    /// A recording the writer has closed: it opens without sharing write access (throws IOException while the
+    /// recorder still holds it) and has a sane size.
+    /// </summary>
+    private static bool IsFinishedVideo(string path)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length < 1024 || info.Length > WatchedFiles.MaxVideoBytes || info.Attributes.HasFlag(FileAttributes.ReparsePoint)) return false;
+        using var probe = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return true;
     }
 
     /// <summary>The image as PNG (other formats are decoded and re-encoded), or null when it is not a usable image.</summary>

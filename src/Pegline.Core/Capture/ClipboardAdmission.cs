@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace Pegline.Core.Capture;
 
@@ -51,9 +51,9 @@ public static partial class ClipboardAdmission
     public static bool PrefersImage(bool hasImage, string? text, bool documentCopy) =>
         hasImage && !(documentCopy && AdmitsText(text) && PlainUrl(text) is null);
 
-    /// <summary>The image files among copied files (Explorer, chat apps), in order and without duplicates.</summary>
-    public static IReadOnlyList<string> CopiedImages(IEnumerable<string> paths) =>
-        [.. paths.Where(WatchedFiles.IsImage).Distinct(StringComparer.OrdinalIgnoreCase).Take(MaxCopiedFiles)];
+    /// <summary>The image and video files among copied files (Explorer, chat apps), in order and without duplicates.</summary>
+    public static IReadOnlyList<string> CopiedMedia(IEnumerable<string> paths) =>
+        [.. paths.Where(WatchedFiles.IsMedia).Distinct(StringComparer.OrdinalIgnoreCase).Take(MaxCopiedFiles)];
 
     [GeneratedRegex("^(Rich Text Format|Rich Text Format Without Objects|Object Descriptor|Embed Source|Link Source|XML Spreadsheet|Csv|Biff\\d*)$", RegexOptions.IgnoreCase)]
     private static partial Regex DocumentFormat();

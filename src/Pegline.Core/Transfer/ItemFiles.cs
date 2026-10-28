@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using Pegline.Core.Models;
 using Pegline.Core.Storage;
@@ -23,6 +23,10 @@ public sealed class ItemFiles(LibraryStore store, string transferDirectory)
     {
         switch (item.Kind)
         {
+            case ItemKind.Image when item.Recording:
+                var video = store.Media.PathOf(item.CurrentVideoFile);
+                if (item.CurrentVideoFile.Length == 0 || !File.Exists(video)) throw new InvalidOperationException("File could not be read or safely saved");
+                return new ItemFile(item.Id, video, ExportName(item, Path.GetExtension(video)));
             case ItemKind.Image:
                 var media = store.MediaPath(item);
                 if (!File.Exists(media)) throw new InvalidOperationException("File could not be read or safely saved");
@@ -120,7 +124,7 @@ public sealed class ItemFiles(LibraryStore store, string transferDirectory)
         else stem = "";
         stem = Sanitize(stem);
         if (stem.Length == 0)
-            stem = (item.Kind == ItemKind.Image ? "Image " : "Text ") + item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH.mm.ss", CultureInfo.InvariantCulture);
+            stem = (item.Recording ? "Recording " : item.Kind == ItemKind.Image ? "Image " : "Text ") + item.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH.mm.ss", CultureInfo.InvariantCulture);
         return stem + extension.ToLowerInvariant();
     }
 
