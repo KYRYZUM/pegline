@@ -39,6 +39,9 @@ public partial class App : Application
     private Search.VisualSearchService? _visual;
     private Links.LinkPreviewService? _links;
     private FolderWatcher? _folders;
+    private Settings.SettingsWindow? _settingsWindow;
+    private EdgeReveal? _edge;
+    private ShelfTheme _launchTheme;
     private readonly ScreenshotPairing _pairing = new();
     private string _watchedKey = "";
 
@@ -49,6 +52,18 @@ public partial class App : Application
         base.OnStartup(e);
         _instance = new Mutex(initiallyOwned: true, InstanceName, out var createdNew);
         _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, InstanceName + "-show");
+        if (!createdNew && e.Args.Contains("--reopen"))
+        {
+            // Reopening (to apply a language): wait for the previous process to finish quitting.
+            try
+            {
+                createdNew = _instance.WaitOne(TimeSpan.FromSeconds(15));
+            }
+            catch (AbandonedMutexException)
+            {
+                createdNew = true;
+            }
+        }
         if (!createdNew)
         {
             // Another Pegline is running: ask it to show its shelves.
@@ -63,7 +78,9 @@ public partial class App : Application
         };
 
         _settings = new SettingsStore(DataDirectory);
+        // The language is chosen once per run; Settings offers to reopen when it changes.
         Loc.Use(_settings.Current.Language);
+        _launchTheme = _settings.Current.Theme;
         _store = new LibraryStore(DataDirectory) { RetentionDays = _settings.Current.RetentionDays };
         _store.Expire();
 
@@ -84,18 +101,32 @@ public partial class App : Application
         _library.FilesDropped += (_, paths) => CollectCopiedFiles(paths, intoLibrary: true);
         _hotKeys = new HotKeyService(_messages);
         _hotKeys.Pressed += (_, action) => OnGlobalShortcut(action);
-        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, Quit);
+        _tray = new TrayIcon(_settings, () => _shelves.ShowShelves(), () => OpenLibrary(null, null, false), CaptureScreen, () => OpenSettings("general"), Quit);
+        _shelves.OpenSettings = OpenSettings;
+        _library.OpenSettings = OpenSettings;
         ApplyGlobalShortcuts();
         _folders = new FolderWatcher(Dispatcher, CollectFile, path => _ = CollectRecording(path));
         ConfigureFolders();
+        _edge = new EdgeReveal(Dispatcher, PointerRevealAllowed, () => _shelves.ShowPassive(null, TimeSpan.Zero))
+        {
+            Enabled = _settings.Current.PointerReveal,
+        };
 
+        var retention = RetentionKey(_settings.Current);
         _settings.Changed += (_, _) =>
         {
-            Loc.Use(_settings.Current.Language);
-            _store.RetentionDays = _settings.Current.RetentionDays;
+            var current = _settings.Current;
+            _store.RetentionDays = current.RetentionDays;
+            if (RetentionKey(current) is var now && now != retention)
+            {
+                // A shorter history applies at once instead of at the next half-hourly sweep.
+                retention = now;
+                _store.Expire();
+            }
             ApplyGlobalShortcuts();
             ConfigureFolders();
-            if (_settings.Current.FetchLinkMetadata) _links.RequestAll();
+            _edge.Enabled = current.PointerReveal;
+            if (current.FetchLinkMetadata) _links.RequestAll();
         };
         _store.RecentFolderUsed += (_, folder) => _settings.Update(s =>
         {
@@ -262,6 +293,12 @@ public partial class App : Application
             DevSnapshot.CaptureDetached(_library.FiltersForSnapshot(), new Size(336, 600), filtersShot, () => Shutdown());
             return;
         }
+        if (e.Args is ["--snapshot", var page, var pageShot] && page.StartsWith("settings-", StringComparison.Ordinal))
+        {
+            _settingsWindow = new Settings.SettingsWindow(_settings, _store, _hotKeys, _launchTheme, () => { }, () => { });
+            DevSnapshot.Capture(_settingsWindow, page, pageShot, () => Shutdown());
+            return;
+        }
         if (e.Args is ["--snapshot", var target, var output])
         {
             DevSnapshot.Capture(target.StartsWith("library", StringComparison.Ordinal) ? _library : _shelves, target, output, () => Shutdown());
@@ -388,10 +425,52 @@ public partial class App : Application
     private void Collected(ClipItem image, bool crop)
     {
         if (_settings is null || _shelves is null) return;
-        if (_settings.Current.IndexImages) _ocr?.Enqueue(image);
-        // Never pull the shelves over a full-screen app (a game or a video); the image waits on its shelf.
-        if (crop || (_settings.Current.OpenAfterScreenshot && !_shelves.IsShown && !Win32.IsFullscreenForeground()))
+        var settings = _settings.Current;
+        if (settings.IndexImages) _ocr?.Enqueue(image);
+        if (settings.Sounds) Sounds.Play(Sound.Hang);
+        if (crop)
+        {
             _shelves.ShowCaptured(image.Id, crop);
+            return;
+        }
+        // The new image shows itself for a moment without taking the keyboard. Over a full-screen app (a game or a
+        // video) it waits quietly on its shelf unless the user allowed the shelves there.
+        if (settings.OpenAfterScreenshot && (settings.ShowOverFullScreen || !Win32.IsFullscreenForeground()))
+            _shelves.ShowPassive(image.Id, TimeSpan.FromSeconds(2.5));
+    }
+
+    private static string RetentionKey(AppSettings settings) =>
+        string.Join(",", settings.RetentionDays.OrderBy(p => p.Key).Select(p => p.Value));
+
+    /// <summary>The top edge brings the shelves down only when nothing else of Pegline's is in use.</summary>
+    private bool PointerRevealAllowed()
+    {
+        if (_shelves is null || _settings is null || _shelves.IsShown) return false;
+        if (_library is { IsActive: true } || _settingsWindow is { IsActive: true }) return false;
+        return _settings.Current.ShowOverFullScreen || !Win32.IsFullscreenForeground();
+    }
+
+    private void OpenSettings(string section)
+    {
+        if (_settings is null || _store is null || _hotKeys is null) return;
+        _settingsWindow ??= new Settings.SettingsWindow(_settings, _store, _hotKeys, _launchTheme, () => OpenLibrary(null, null, false), Reopen);
+        _settingsWindow.Present(section);
+    }
+
+    /// <summary>Quits and starts again, so a new language reaches every window. Open edits are saved by quitting.</summary>
+    private void Reopen()
+    {
+        if (Environment.ProcessPath is not { } path) return;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path, "--reopen") { UseShellExecute = false });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Log(ex);
+            return;
+        }
+        Quit();
     }
 
     /// <summary>An image saved to a watched folder. A screenshot already taken from the clipboard only gains its file path.</summary>
@@ -452,7 +531,8 @@ public partial class App : Application
     {
         if (_hotKeys is null || _settings is null) return;
         var failed = _hotKeys.Apply(_settings.Current.GlobalShortcuts);
-        if (failed.Count > 0)
+        // Settings explains a refused shortcut in place.
+        if (failed.Count > 0 && _settingsWindow is not { IsVisible: true })
             _tray?.Notify("Pegline", Loc.F("Shortcut unavailable: {0}", string.Join(", ", failed.Select(a => _settings.Current.GlobalShortcuts[a]))));
     }
 
@@ -460,6 +540,7 @@ public partial class App : Application
 
     internal void Quit()
     {
+        _settingsWindow?.CloseForQuit();
         _library?.CloseForQuit();
         _shelves?.Close();
         Shutdown();

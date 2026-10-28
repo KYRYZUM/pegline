@@ -31,6 +31,8 @@ Aktif geliştirme (`0.1.0`). Hangi özelliklerin tamamlandığı [ROADMAP.md](RO
 - Kütüphane filtre paneli: arama yeri (metin ve görsel / yalnızca metin ve OCR / yalnızca görsel), eklenme tarihi, alan adı, etiketler (hepsi eşleşsin), yalnızca sabitlenenler
 - Tür başına saklama süresi; sabitlenen, klasördeki ya da etiketli öğeler süresi dolunca silinmez
 - Genel kısayollar (`Ctrl+Alt+T` askılar, `Ctrl+Alt+S` arama), tepsi simgesi, tek örnek
+- Ayarlar (`Ctrl+,`, tepsi, Eylemler paleti): Genel (dil, görünen askılar, yumuşak renkler / nötr cam, kart boyutu, üst kenarda bekleyince ve yeni bir şey asılınca inme, tam ekran uygulamaların üzerinde, sesler, oturum açılışında başlatma), Geçmiş (tür başına saklama, kaydedilmemişleri temizleme), Kaynaklar (pano, link önizlemeleri, ekran görüntüleri ve kayıtlar, dizinleme, izlenen klasörler), Klavye kısayolları (genel ve gezinme kısayolları için kaydedici, çakışma denetimi), Güncellemeler, Hakkında
+- 9 dil: English, Türkçe, Español, Français, Português (Brasil), Azərbaycan dili, 简体中文, 日本語, 한국어; varsayılan olarak Windows görüntü dili
 
 ## Geliştirme
 
@@ -42,7 +44,7 @@ dotnet run --project src/Pegline.App
 
 Görsel arama modelleri (`assets/CLIP`, Git dışında) derlemeye eklenir; çalışan uygulama hiçbir şey indirmez, sorgu göndermez. Modeller olmadan da derlenir ve çalışır, yalnızca görsel arama kapalı olur.
 
-Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --ocr görsel.png çıktı.txt` OCR'ı tek dosyada dener; `--clip-check çıktı.txt` model dışa aktarımını (kırmızı daire / mavi kare sıralaması, hız) doğrular; `--visual-search "tarif" çıktı.txt` geliştirme kütüphanesini dizinleyip bir tarifi arar; `--links çıktı.txt <url…>` link önizlemelerini dener; `--recording video.mp4 çıktı.txt` içe aktarma ve kesmeyi dener; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop|library-filters> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
+Debug derlemesi verilerini ayrı bir `Pegline Dev` klasöründe tutar. `PEGLINE_PIN_SHELVES=1` ortam değişkeni, askıların odağı kaybedince kapanmasını engeller (ekran görüntüsü / hata ayıklama için). Debug derlemesinde `Pegline.exe --ocr görsel.png çıktı.txt` OCR'ı tek dosyada dener; `--clip-check çıktı.txt` model dışa aktarımını (kırmızı daire / mavi kare sıralaması, hız) doğrular; `--visual-search "tarif" çıktı.txt` geliştirme kütüphanesini dizinleyip bir tarifi arar; `--links çıktı.txt <url…>` link önizlemelerini dener; `--recording video.mp4 çıktı.txt` içe aktarma ve kesmeyi dener; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop|library-filters|settings-general|settings-history|settings-sources|settings-shortcuts|settings-updates|settings-about> çıktı.png` bir pencereyi ekran dışında, odak almadan PNG'ye çizer.
 
 ## Yapı
 

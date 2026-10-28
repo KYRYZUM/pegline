@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Pegline.App.Localization;
 using Pegline.App.Organize;
 using Pegline.Core.Actions;
@@ -40,6 +41,11 @@ public partial class ShelfWindow : Window
     private bool _holdOpen;
     private bool _hiding;
     private DateTime _shownAt;
+    /// <summary>Shown without taking the keyboard: a peek at something new, or the pointer resting at the top edge.</summary>
+    private bool _passive;
+    private DateTime _peekUntil;
+    private DateTime? _awaySince;
+    private DispatcherTimer? _passiveTimer;
     private bool _snapshot = false; // set only by the debug snapshot mode
 
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
@@ -102,6 +108,13 @@ public partial class ShelfWindow : Window
         {
             if (DateTime.UtcNow - _shownAt > TimeSpan.FromMilliseconds(400)) ScheduleFocusCheck();
         };
+        // A click into passively shown shelves makes them ordinary, keyboard-driven shelves.
+        Activated += (_, _) =>
+        {
+            if (!_passive) return;
+            _passive = false;
+            Keyboard.Focus(this);
+        };
         SourceInitialized += (_, _) =>
         {
             var handle = new WindowInteropHelper(this).Handle;
@@ -112,17 +125,25 @@ public partial class ShelfWindow : Window
 
     public bool IsShown => IsVisible && !_hiding;
 
+    private void PlaySound(Sound sound)
+    {
+        if (_settings.Current.Sounds) Sounds.Play(sound);
+    }
+
     // ----- Show / hide -----
 
     public void ToggleShelves()
     {
-        if (IsShown) HideShelves(restoreFocus: true);
+        // During a peek the shortcut takes the shelves over instead of sending them back up.
+        if (IsShown && !_passive) HideShelves(restoreFocus: true);
         else ShowShelves();
     }
 
     public void ShowShelves(bool search = false)
     {
         if (!IsShown) _foreground.Remember();
+        _passive = false;
+        ShowActivated = true;
         _hiding = false;
         _shownAt = DateTime.UtcNow;
         (_work, _scale) = Win32.MonitorUnderCursor();
@@ -151,6 +172,84 @@ public partial class ShelfWindow : Window
             Opacity = 1;
             Slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-Panel.ActualHeight - 20, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         }
+    }
+
+    /// <summary>
+    /// Brings the shelves down without taking the keyboard from the app in front. They tuck back up once the pointer has
+    /// been away for half a second (and, for a peek, after <paramref name="hold"/>), unless they are clicked into.
+    /// </summary>
+    public void ShowPassive(Guid? select, TimeSpan hold)
+    {
+        if (IsShown && !_passive)
+        {
+            if (select is { } focused)
+            {
+                _nav.Select(focused);
+                Render();
+            }
+            return;
+        }
+        if (!IsShown) _foreground.Remember();
+        var wasShown = IsShown;
+        _passive = true;
+        _hiding = false;
+        _shownAt = DateTime.UtcNow;
+        _peekUntil = DateTime.UtcNow + hold;
+        _awaySince = null;
+        if (!wasShown)
+        {
+            (_work, _scale) = Win32.MonitorUnderCursor();
+            var width = (_work.Right - _work.Left) / _scale;
+            foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
+            _nav.SetItems(_store.Items);
+            _nav.Open();
+            SearchBox.Text = "";
+        }
+        if (select is { } id) _nav.Select(id);
+        Render();
+
+        var wasVisible = IsVisible;
+        if (!wasVisible)
+        {
+            ShowActivated = false;
+            Opacity = 0;
+            Show();
+        }
+        Place();
+        if (!wasVisible)
+        {
+            Opacity = 1;
+            Slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-Panel.ActualHeight - 20, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        }
+        if (_passiveTimer is null)
+        {
+            _passiveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            _passiveTimer.Tick += (_, _) => WatchPassive();
+        }
+        _passiveTimer.Start();
+    }
+
+    private void WatchPassive()
+    {
+        if (!IsShown || !_passive || IsActive)
+        {
+            _passiveTimer?.Stop();
+            return;
+        }
+        var now = DateTime.UtcNow;
+        // The shelves' zone runs from their lowest point up to the top of the screen, so moving up never hides them.
+        var handle = new WindowInteropHelper(this).Handle;
+        var inside = Win32.GetCursorPos(out var point) && Win32.GetWindowRect(handle, out var rect)
+            && point.X >= rect.Left && point.X < rect.Right && point.Y < rect.Bottom;
+        if (inside || now < _peekUntil || _holdOpen || Mouse.LeftButton == MouseButtonState.Pressed)
+        {
+            _awaySince = null;
+            return;
+        }
+        _awaySince ??= now;
+        if (now - _awaySince < TimeSpan.FromMilliseconds(500)) return;
+        _passiveTimer?.Stop();
+        HideShelves(restoreFocus: false);
     }
 
 #if DEBUG
@@ -207,7 +306,14 @@ public partial class ShelfWindow : Window
         var current = _settings.Current;
         _keymap = new Keymap(current.LocalShortcuts);
         _palette = ShelfPalette.For(current.Theme);
+        var resized = _metrics != CardMetrics.For(current.CardSize);
         _metrics = CardMetrics.For(current.CardSize);
+        if (!_nav.VisibleKinds.SequenceEqual(current.VisibleKinds)) _nav.SetVisibleKinds(current.VisibleKinds);
+        if (resized && _work.Right > _work.Left)
+        {
+            var width = (_work.Right - _work.Left) / _scale;
+            foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
+        }
         Panel.Background = _palette.Panel;
         Panel.BorderBrush = _palette.PanelBorder;
         Brand.Foreground = _palette.Foreground;
@@ -226,7 +332,11 @@ public partial class ShelfWindow : Window
             row.Palette = _palette;
             row.Metrics = _metrics;
         }
-        if (IsShown) Render();
+        if (IsShown)
+        {
+            Render();
+            Place();
+        }
     }
 
     private void Render()
@@ -362,6 +472,13 @@ public partial class ShelfWindow : Window
         if (e.OriginalSource == SearchBox || KeyGestures.IsModifier(e.Key == Key.System ? e.SystemKey : e.Key)) return;
         var gesture = KeyGestures.FromEvent(e);
         if (gesture.Length == 0) return;
+        if (gesture == "Ctrl+,")
+        {
+            e.Handled = true;
+            HideShelves(restoreFocus: false);
+            OpenSettings?.Invoke("general");
+            return;
+        }
         foreach (var action in _keymap.Resolve(gesture))
         {
             if (Run(action, gesture))
@@ -430,6 +547,7 @@ public partial class ShelfWindow : Window
                 var removed = _nav.SelectedItems();
                 if (removed.Count == 0) return true;
                 _store.TakeDown(removed.Select(i => i.Id));
+                PlaySound(Sound.TakeDown);
                 ShowToast(Loc.T("Taken down"));
                 return true;
             case "undo":
@@ -560,6 +678,7 @@ public partial class ShelfWindow : Window
             var answer = MessageBox.Show(_preview is { IsOpen: true } owner ? owner : this, Loc.T("Move to Trash?") + $"  ({items.Count})", "Pegline", MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel);
             if (answer != MessageBoxResult.OK) return;
             _store.MoveToTrash(items.Select(i => i.Id));
+            PlaySound(Sound.TakeDown);
             ShowToast(Loc.T("Moved to Trash"));
         }
         finally

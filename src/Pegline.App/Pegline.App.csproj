@@ -27,6 +27,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Localization\Catalogs\*.json" LogicalName="Pegline.Catalog.%(Filename).json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Pegline.Core\Pegline.Core.csproj" />
   </ItemGroup>
 

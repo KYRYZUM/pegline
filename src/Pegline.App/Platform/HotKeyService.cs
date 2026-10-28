@@ -17,13 +17,17 @@ internal sealed class HotKeyService : IDisposable
 
     public event EventHandler<string>? Pressed;
 
+    /// <summary>Actions whose shortcut Windows refused at the last registration (another app holds it).</summary>
+    public IReadOnlyList<string> Unavailable { get; private set; } = [];
+
     /// <summary>Replaces all registrations. Returns actions whose shortcut could not be registered (already taken).</summary>
     public IReadOnlyList<string> Apply(IReadOnlyDictionary<string, string> shortcuts)
     {
         UnregisterAll();
         _gestures.Clear();
         foreach (var (action, gesture) in shortcuts) _gestures[action] = gesture;
-        return _suspended > 0 ? [] : RegisterAll();
+        if (_suspended > 0) return [];
+        return Unavailable = RegisterAll();
     }
 
     /// <summary>Temporarily releases owned registrations so a recorder can receive the same combination.</summary>
@@ -73,7 +77,7 @@ internal sealed class HotKeyService : IDisposable
         {
             if (_released) return;
             _released = true;
-            if (--owner._suspended == 0) owner.RegisterAll();
+            if (--owner._suspended == 0) owner.Unavailable = owner.RegisterAll();
         }
     }
 }

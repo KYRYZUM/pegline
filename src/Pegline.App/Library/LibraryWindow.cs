@@ -567,6 +567,12 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         var gesture = KeyGestures.FromEvent(e);
         if (gesture.Length == 0) return;
         var editing = Keyboard.FocusedElement is TextBox;
+        if (gesture == "Ctrl+,")
+        {
+            e.Handled = true;
+            if (_inspector.Flush()) OpenSettings?.Invoke("general");
+            return;
+        }
 
         if (_search.IsKeyboardFocusWithin)
         {
@@ -1052,8 +1058,12 @@ internal sealed class LibraryWindow : Window, IPreviewHost
         "menu.sortCopied", "menu.sortRelevance", "menu.searchAll", "menu.searchText", "menu.searchVisual", "menu.filters", "menu.daysAny", "menu.days7", "menu.days30",
         "menu.openFile", "menu.revealFile", "menu.clearUnsavedHistory", "menu.toggleLine", "menu.copyLatestImage", "menu.quit",
         "folder", "name", "tag", "export", "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
-        "menu.openScreenshotsFolder", "menu.resetZoom",
+        "menu.openScreenshotsFolder", "menu.resetZoom", "menu.settings", "menu.settingsGeneral", "menu.settingsHistory",
+        "menu.settingsSources", "menu.settingsShortcuts", "menu.settingsAbout", "menu.checkUpdates",
     ];
+
+    /// <summary>Opens Settings at a section; the Library stays open behind it.</summary>
+    public Action<string>? OpenSettings { get; set; }
 
     private static bool IsImplemented(string id) =>
         LibraryActions.Contains(id)
@@ -1197,6 +1207,11 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     private void RunMenu(string action)
     {
         var scope = _model.Query.Scope;
+        if (Shelves.ShelfWindow.SettingsSection(action) is { } section)
+        {
+            OpenSettings?.Invoke(section);
+            return;
+        }
         switch (action)
         {
             case "newNote": OnRequested("newNote", []); break;
@@ -1295,7 +1310,7 @@ internal sealed class LibraryWindow : Window, IPreviewHost
     {
         if (!_visual.IsBundled) return Loc.T("Visual search is not included in this build; text and OCR search still work.");
         if (_visual.IsBroken) return Loc.T("Visual search is unavailable: its model files are damaged. Reinstall Pegline to restore them.");
-        if (!_settings.Current.IndexImages) return Loc.T("Image indexing is turned off in the tray menu.");
+        if (!_settings.Current.IndexImages) return Loc.T("Image indexing is turned off in Settings › Sources.");
         return _visual.Progress is { Total: > 0 } progress ? Loc.F("Reading images… {0} of {1}", progress.Done, progress.Total) : "";
     }
 

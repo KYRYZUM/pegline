@@ -21,7 +21,7 @@ public sealed class AppSettings
 
     public int Version { get; set; }
 
-    public static readonly string[] Languages = ["system", "en", "tr", "es", "fr", "pt-BR", "az", "zh-Hans", "ja", "ko"];
+    public static readonly string[] Languages = ["system", .. AppLanguages.Available];
 
     public List<ItemKind> VisibleKinds { get; set; } = [ItemKind.Image, ItemKind.Text, ItemKind.Link];
     public bool CaptureText { get; set; } = true;
@@ -31,6 +31,12 @@ public sealed class AppSettings
     public bool IndexImages { get; set; } = true;
     public bool OpenAfterScreenshot { get; set; } = true;
     public bool CaptureScreenshots { get; set; } = true;
+
+    /// <summary>Resting the pointer against the top edge of a screen brings the shelves down there.</summary>
+    public bool PointerReveal { get; set; }
+
+    /// <summary>Whether the shelves also come down by themselves over a full-screen app (a game, a video, a presentation).</summary>
+    public bool ShowOverFullScreen { get; set; }
 
     /// <summary>Days of history per kind; 0 keeps forever.</summary>
     public Dictionary<ItemKind, int> RetentionDays { get; set; } = new()

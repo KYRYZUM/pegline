@@ -37,7 +37,24 @@ public partial class ShelfWindow : IPreviewHost
         "library", "librarySearch", "allTypes", "images", "texts", "links", "menu.newNote", "menu.scopeSaved", "menu.scopeFavorites",
         "menu.scopeUnorganized", "menu.scopeRecent", "menu.scopeTrash", "folder", "name", "tag", "export",
         "markup", "crop", "menu.markupUndo", "menu.markupRedo", "copyOCR", "refreshLink", "trimVideo",
+        "menu.settings", "menu.settingsGeneral", "menu.settingsHistory", "menu.settingsSources", "menu.settingsShortcuts",
+        "menu.settingsAbout", "menu.checkUpdates",
     ];
+
+    /// <summary>Opens Settings at a section ("general", "history", "sources", "shortcuts", "updates", "about").</summary>
+    public Action<string>? OpenSettings { get; set; }
+
+    /// <summary>The Actions palette entries that open a Settings section.</summary>
+    internal static string? SettingsSection(string action) => action switch
+    {
+        "settings" or "settingsGeneral" => "general",
+        "settingsHistory" => "history",
+        "settingsSources" => "sources",
+        "settingsShortcuts" => "shortcuts",
+        "settingsAbout" => "about",
+        "checkUpdates" => "updates",
+        _ => null,
+    };
 
     Keymap IPreviewHost.Keymap => _keymap;
 
@@ -130,6 +147,7 @@ public partial class ShelfWindow : IPreviewHost
                 return true;
             case "remove":
                 _store.TakeDown([item.Id]);
+                PlaySound(Sound.TakeDown);
                 ShowToast(Loc.T("Taken down"));
                 return true;
             case "undo":
@@ -550,6 +568,12 @@ public partial class ShelfWindow : IPreviewHost
     private void RunMenu(string action, IReadOnlyList<ClipItem> targets)
     {
         var single = targets.Count == 1 ? targets[0] : null;
+        if (SettingsSection(action) is { } section)
+        {
+            HideShelves(restoreFocus: false);
+            OpenSettings?.Invoke(section);
+            return;
+        }
         switch (action)
         {
             case "toggleLine":
@@ -569,6 +593,7 @@ public partial class ShelfWindow : IPreviewHost
                 var removed = side.Select(i => i.Id).ToList();
                 if (removed.Count == 0) break;
                 _store.TakeDown(removed);
+                PlaySound(Sound.TakeDown);
                 ShowToast(Loc.F("Took down {0} items", removed.Count));
                 break;
             case "markupUndo" or "markupRedo" when single is not null:

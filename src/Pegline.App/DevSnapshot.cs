@@ -55,6 +55,7 @@ internal static class DevSnapshot
         window.Top = -20000;
         if (window is LibraryWindow library) library.ShowForSnapshot(target.Contains("recent", StringComparison.Ordinal) ? Pegline.Core.Library.LibraryScope.Recent : null, target.Contains("list", StringComparison.Ordinal));
         else if (window is ShelfWindow shelves) shelves.ShowForSnapshot();
+        else if (window is Settings.SettingsWindow settings) settings.ShowForSnapshot(target["settings-".Length..]);
         window.Dispatcher.BeginInvoke(() =>
         {
             var element = (FrameworkElement)window.Content;

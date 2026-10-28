@@ -15,7 +15,7 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [x] Kopyala (`Enter` kapatır, `Ctrl+C` açık tutar), `Ctrl+Enter` önceki uygulamaya yapıştır, sabitle, askıdan indir + geri al (32), Çöp'e taşı
 - [x] Askı araması (`Shift+S`), satır göster/gizle, sadece sabitlenenler, seçim modu
 - [x] Genel kısayollar, tepsi, tek örnek, hoş geldin bildirimi
-- [~] Türkçe + İngilizce arayüz (diğer 7 dil: Faz 9)
+- [x] Türkçe + İngilizce arayüz (diğer 7 dil Faz 9'da eklendi)
 
 ## Faz 2 — Önizleme ve Eylemler
 - [x] Space ile çerçevesiz önizleme (görsel / metin / link), oklarla askılar arası yerinde gezinme
@@ -65,9 +65,12 @@ Hedef: ClipBoardLine'daki tüm kullanıcıya görünen özelliklerin Windows-nat
 - [ ] Canlı kabul: gerçek ekran kaydıyla oynatma ve kesme penceresi elle denenecek
 
 ## Faz 9 — Ayarlar ve kişiselleştirme
-- [ ] Ayarlar penceresi: Genel, Geçmiş, Kaynaklar, Klavye kısayolları (kaydedici), Güncellemeler, Hakkında
-- [ ] Yumuşak renkler / nötr cam, kart boyutu, sesler, oturum açılışında başlat, tam ekran uygulamalarda görünürlük
-- [ ] 9 dil (en, tr, es, fr, pt-BR, az, zh-Hans, ja, ko) ve sistem dili
+- [x] Ayarlar penceresi (`Ctrl+,`, tepsi, Eylemler paleti): Genel, Geçmiş, Kaynaklar, Klavye kısayolları, Güncellemeler, Hakkında; her denetim tepsiyle aynı ayar yolunu kullanır, pencereyi açmak hiçbir şey yazmaz
+- [x] Kısayol kaydedici: genel kısayollar kayıt sırasında bırakılır, Ctrl/Alt/Win zorunlu, birbirleriyle ve Windows'taki başka uygulamalarla çakışma uyarısı; gezinme kısayolları aynı yerde (askı / Kütüphane / önizleme / işaretleme / metin düzenleme) çakışamaz; kapat, varsayılana dön, tümünü sıfırla; Kütüphane için `Ctrl+Alt+L` hazır düğmesi
+- [x] Yumuşak renkler / nötr cam ve kart boyutu askılara anında uygulanır; görünen askılar (en az biri açık); sesler (asılma ve indirme için kod içinde üretilen kısa sesler); oturum açılışında başlat (kullanıcı Run kaydı, Windows'tan okunur, yalnızca kurulu sürümde)
+- [x] Askıları indirme: imleç ekranın üst kenarında 350 ms bekleyince (varsayılan kapalı, düğme basılıyken ya da üstte görev çubuğu varken asla), yeni bir şey asılınca 2,5 sn göz atma (klavyeyi almaz, imleç üzerindeyken açık kalır, tıklayınca normal askıya döner); tam ekran uygulamaların üzerinde yalnızca izin verilirse
+- [x] 9 dil (en, tr, es, fr, pt-BR, az, zh-Hans, ja, ko) ve sistem dili (pt → pt-BR, zh-CN/SG → zh-Hans); 466 metnin hepsi her dilde, yer tutucular denetlendi; dil değişince "Pegline'ı yeniden aç"
+- [ ] Canlı kabul: Ayarlar penceresi, kısayol kaydedici ve üst kenardan açılma elle denenecek
 
 ## Faz 10 — Dağıtım
 - [ ] Kurulum paketi ve imzalı otomatik güncelleme (Velopack + GitHub Releases), saatlik kontrol, onaylı kurulum
