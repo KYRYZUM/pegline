@@ -103,3 +103,9 @@ Goal: a Windows-native counterpart of every user-facing feature in ClipBoardLine
 - [x] Code signing policy with team roles and privacy policy (`CODE_SIGNING_POLICY.md`), Code of Conduct (Contributor Covenant 2.1)
 - [x] Public repository
 - [~] Free code signing for open source projects: application sent (2026-10-29), waiting for the answer; then signed releases
+
+## 0.1.4 — Smoother shelves
+- [x] The shelves are prepared off-screen while Pegline starts: the first opening no longer pauses (about 350 ms → 35 ms)
+- [x] The slide starts once the panel's first frame is drawn and moves the panel as one cached picture, so ropes, pegs and card shadows are not redrawn for every frame
+- [x] The window is resized only when its size really changes, never in the middle of a slide
+- [x] Repository renamed to `pegline-clipboard-manager`; update checks and model downloads use the new address

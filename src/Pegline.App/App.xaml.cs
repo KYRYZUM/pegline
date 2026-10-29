@@ -152,6 +152,7 @@ public partial class App : Application
             _visual.Start();
             _links.RequestAll();
             _updates.Start();
+            _shelves.Prepare();
         }, DispatcherPriority.ApplicationIdle);
 
         new Thread(() =>
@@ -304,6 +305,16 @@ public partial class App : Application
         {
             _settingsWindow = new Settings.SettingsWindow(_settings, _store, _hotKeys, _updates, _launchTheme, () => { }, () => { });
             DevSnapshot.Capture(_settingsWindow, page, pageShot, () => Shutdown());
+            return;
+        }
+        if (e.Args is ["--slide-timing", var slideOutput])
+        {
+            // Development aid: slides the shelves down off-screen a few times and writes how evenly the frames came.
+            _shelves.MeasureSlides(4, report =>
+            {
+                File.WriteAllText(slideOutput, report);
+                Shutdown();
+            });
             return;
         }
         if (e.Args is ["--snapshot", var target, var output])

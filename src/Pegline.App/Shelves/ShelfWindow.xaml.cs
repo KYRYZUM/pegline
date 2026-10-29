@@ -48,6 +48,7 @@ public partial class ShelfWindow : Window
     private DispatcherTimer? _passiveTimer;
     private bool _snapshot = false; // set only by the debug snapshot mode
     private bool _settling;
+    private bool _preparing;
 
     /// <summary>Development aid: PEGLINE_PIN_SHELVES=1 keeps the shelves open when they lose focus.</summary>
     private static readonly bool PinnedForDebugging = Environment.GetEnvironmentVariable("PEGLINE_PIN_SHELVES") == "1";
@@ -124,7 +125,18 @@ public partial class ShelfWindow : Window
         ApplySettings();
     }
 
-    public bool IsShown => IsVisible && !_hiding;
+    /// <summary>On screen for the user: not sliding away, and not the hidden startup preparation.</summary>
+    public bool IsShown => IsVisible && !_hiding && !_preparing;
+
+    /// <summary>The monitor the shelves open on: the one under the pointer (or, in a debug timing run, a spot off-screen).</summary>
+    private static (Win32.RECT Work, double Scale) ShelfMonitor()
+    {
+        var (work, scale) = Win32.MonitorUnderCursor();
+#if DEBUG
+        if (_debugWorkArea is { } offscreen) work = offscreen;
+#endif
+        return (work, scale);
+    }
 
     private void PlaySound(Sound sound)
     {
@@ -147,7 +159,7 @@ public partial class ShelfWindow : Window
         ShowActivated = true;
         _hiding = false;
         _shownAt = DateTime.UtcNow;
-        (_work, _scale) = Win32.MonitorUnderCursor();
+        (_work, _scale) = ShelfMonitor();
         var width = (_work.Right - _work.Left) / _scale;
         foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
         _nav.SetItems(_store.Items);
@@ -156,7 +168,8 @@ public partial class ShelfWindow : Window
         SearchBox.Text = "";
         Render();
 
-        var wasVisible = IsVisible;
+        var wasVisible = IsVisible && !_preparing;
+        _preparing = false;
         if (!wasVisible)
         {
             Opacity = 0;
@@ -171,7 +184,7 @@ public partial class ShelfWindow : Window
         if (!wasVisible)
         {
             Opacity = 1;
-            Slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-Panel.ActualHeight - 20, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            SlideIn();
         }
     }
 
@@ -199,7 +212,7 @@ public partial class ShelfWindow : Window
         _awaySince = null;
         if (!wasShown)
         {
-            (_work, _scale) = Win32.MonitorUnderCursor();
+            (_work, _scale) = ShelfMonitor();
             var width = (_work.Right - _work.Left) / _scale;
             foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
             _nav.SetItems(_store.Items);
@@ -209,7 +222,8 @@ public partial class ShelfWindow : Window
         if (select is { } id) _nav.Select(id);
         Render();
 
-        var wasVisible = IsVisible;
+        var wasVisible = IsVisible && !_preparing;
+        _preparing = false;
         if (!wasVisible)
         {
             ShowActivated = false;
@@ -220,7 +234,7 @@ public partial class ShelfWindow : Window
         if (!wasVisible)
         {
             Opacity = 1;
-            Slide.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-Panel.ActualHeight - 20, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+            SlideIn();
         }
         if (_passiveTimer is null)
         {
@@ -257,7 +271,7 @@ public partial class ShelfWindow : Window
     internal void ShowForSnapshot()
     {
         _snapshot = true;
-        (_work, _scale) = Win32.MonitorUnderCursor();
+        (_work, _scale) = ShelfMonitor();
         var width = (_work.Right - _work.Left) / _scale;
         foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
         _nav.SetItems(_store.Items);
@@ -280,13 +294,76 @@ public partial class ShelfWindow : Window
         var animation = new DoubleAnimation(0, -Panel.ActualHeight - 20, TimeSpan.FromMilliseconds(150)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
         animation.Completed += (_, _) =>
         {
+            Panel.CacheMode = null;
             if (!_hiding) return;
             Hide();
             _hiding = false;
             Slide.BeginAnimation(TranslateTransform.YProperty, null);
         };
+        CacheWhileMoving();
         Slide.BeginAnimation(TranslateTransform.YProperty, animation);
         if (restoreFocus) _foreground.Restore();
+    }
+
+    /// <summary>
+    /// Slides the panel down from above the top edge. The slide starts on the frame after the panel was first drawn,
+    /// so building the cards never eats its opening frames, and the panel moves as one cached picture, so its ropes,
+    /// pegs and card shadows are not redrawn for every frame of the movement.
+    /// </summary>
+    private void SlideIn()
+    {
+        var from = -Panel.DesiredSize.Height - 20;
+        Slide.BeginAnimation(TranslateTransform.YProperty, null);
+        Slide.Y = from;
+        CacheWhileMoving();
+        var waited = 0;
+        void Start(object? sender, EventArgs e)
+        {
+            if (++waited < 2) return;
+            CompositionTarget.Rendering -= Start;
+            if (!IsVisible || _hiding) return;
+            var animation = new DoubleAnimation(from, 0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            animation.Completed += (_, _) =>
+            {
+                if (!_hiding) Panel.CacheMode = null;
+            };
+            Slide.BeginAnimation(TranslateTransform.YProperty, animation);
+        }
+        CompositionTarget.Rendering += Start;
+    }
+
+    /// <summary>Draws the panel once into a bitmap at screen resolution while it slides; the live panel returns when it stops.</summary>
+    private void CacheWhileMoving() =>
+        Panel.CacheMode = new BitmapCache { SnapsToDevicePixels = true };
+
+    /// <summary>
+    /// Builds the shelves once at startup, drawn off-screen where nobody sees them and without taking focus, so the
+    /// first real opening does not pause to load cards, thumbnails and the window's drawing resources.
+    /// </summary>
+    public void Prepare()
+    {
+        if (IsVisible) return;
+        var (real, scale) = Win32.MonitorUnderCursor();
+        _scale = scale;
+        _work = new Win32.RECT { Left = -32000, Top = -32000, Right = -32000 + (real.Right - real.Left), Bottom = -32000 + (real.Bottom - real.Top) };
+        var width = (_work.Right - _work.Left) / _scale;
+        foreach (var kind in ShelfNavigator.Order) _nav.SetPageSize(kind, ShelfRowView.Fit(width, _metrics));
+        _nav.SetItems(_store.Items);
+        _nav.Open();
+        Render();
+        _preparing = true;
+        ShowActivated = false;
+        Show();
+        Place();
+        UpdateLayout();
+        Dispatcher.BeginInvoke(() =>
+        {
+            // An opening that came in meanwhile has taken the window over.
+            if (!_preparing) return;
+            _preparing = false;
+            Hide();
+            _nav.Close();
+        }, DispatcherPriority.ContextIdle);
     }
 
     /// <summary>Sizes the window to the monitor width and the panel's height, in device pixels.</summary>
@@ -295,10 +372,7 @@ public partial class ShelfWindow : Window
         if (_snapshot) return;
         var width = (_work.Right - _work.Left) / _scale;
         Panel.Measure(new Size(width, double.PositiveInfinity));
-        var height = Math.Ceiling(Panel.DesiredSize.Height + 2);
-        var handle = new WindowInteropHelper(this).Handle;
-        for (var pass = 0; pass < 2; pass++) // a second pass settles a DPI change between monitors
-            Win32.SetWindowPos(handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(height * _scale), Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
+        PlaceAt(Math.Ceiling(Panel.DesiredSize.Height + 2));
         // A row shown again grows the window before WPF has laid it out; size it once more from the finished layout,
         // so the new row is never left cut off below the old window edge.
         if (!_settling)
@@ -308,12 +382,24 @@ public partial class ShelfWindow : Window
             {
                 _settling = false;
                 if (!IsVisible || _hiding) return;
-                UpdateLayout();
-                var settled = Math.Ceiling(Panel.ActualHeight + 2);
-                Win32.SetWindowPos(new WindowInteropHelper(this).Handle, Win32.HWND_TOPMOST, _work.Left, _work.Top, _work.Right - _work.Left, (int)Math.Ceiling(settled * _scale), Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
-                InvalidateVisual();
+                PlaceAt(Math.Ceiling(Panel.ActualHeight + 2));
             }, DispatcherPriority.Loaded);
         }
+    }
+
+    /// <summary>
+    /// Moves and sizes the window only when its rectangle actually changes: resizing a transparent window rebuilds its
+    /// drawing surface, which would stall a slide that is under way.
+    /// </summary>
+    private void PlaceAt(double height)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        var target = new Win32.RECT { Left = _work.Left, Top = _work.Top, Right = _work.Right, Bottom = _work.Top + (int)Math.Ceiling(height * _scale) };
+        if (IsVisible && Win32.GetWindowRect(handle, out var current)
+            && current.Left == target.Left && current.Top == target.Top && current.Right == target.Right && current.Bottom == target.Bottom)
+            return;
+        for (var pass = 0; pass < 2; pass++) // a second pass settles a DPI change between monitors
+            Win32.SetWindowPos(handle, Win32.HWND_TOPMOST, target.Left, target.Top, target.Right - target.Left, target.Bottom - target.Top, Win32.SWP_SHOWWINDOW | Win32.SWP_NOACTIVATE);
     }
 
     // ----- Rendering -----

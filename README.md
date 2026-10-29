@@ -10,7 +10,7 @@ Pegline pegs your images, texts and links onto three lines that slide down from 
 
 ## Status
 
-`0.1.3`. What is finished is tracked in [ROADMAP.md](ROADMAP.md).
+`0.1.4`. What is finished is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Install and update
 
@@ -57,7 +57,7 @@ To release: `git tag v0.2.0 && git push origin v0.2.0`. The `Release` workflow r
 
 The visual search models (`assets/CLIP`, outside Git) come from this repository's `models-mobileclip-s2-v1` release and are bundled at build time; the running app never downloads anything or sends queries anywhere. Without them Pegline still builds and runs, with visual search turned off.
 
-Debug builds keep their data in a separate `Pegline Dev` folder. The `PEGLINE_PIN_SHELVES=1` environment variable keeps the shelves open when they lose focus (for screenshots and debugging). In a Debug build, `Pegline.exe --ocr image.png out.txt` runs OCR on one file; `--clip-check out.txt` checks the model export (red circle / blue square ranking, speed); `--visual-search "description" out.txt` indexes the development Library and searches it; `--links out.txt <url…>` tries link previews; `--recording video.mp4 out.txt` tries import and trimming; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop|library-filters|settings-general|settings-history|settings-sources|settings-shortcuts|settings-updates|settings-about> out.png` draws a window off-screen to a PNG without taking focus.
+Debug builds keep their data in a separate `Pegline Dev` folder. The `PEGLINE_PIN_SHELVES=1` environment variable keeps the shelves open when they lose focus (for screenshots and debugging). In a Debug build, `Pegline.exe --ocr image.png out.txt` runs OCR on one file; `--clip-check out.txt` checks the model export (red circle / blue square ranking, speed); `--visual-search "description" out.txt` indexes the development Library and searches it; `--links out.txt <url…>` tries link previews; `--recording video.mp4 out.txt` tries import and trimming; `--slide-timing out.txt` slides the shelves down off-screen a few times and reports frame timing; `Pegline.exe --snapshot <library|library-recent|library-recent-list|shelves|picker-folder|picker-tag|picker-name|markup|markup-crop|library-filters|settings-general|settings-history|settings-sources|settings-shortcuts|settings-updates|settings-about> out.png` draws a window off-screen to a PNG without taking focus.
 
 ## Layout
 
