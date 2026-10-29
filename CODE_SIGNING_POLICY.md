@@ -5,7 +5,7 @@ This page describes how Pegline's Windows releases are built and which of them a
 ## What is signed
 
 Only the Windows release files published on this repository's
-[Releases](https://github.com/KYRYZUM/pegline/releases) page for a `v*` tag: the installer
+[Releases](https://github.com/KYRYZUM/pegline-clipboard-manager/releases) page for a `v*` tag: the installer
 (`PeglineApp-win-Setup.exe`), the portable package (`PeglineApp-win-Portable.zip`) and the update
 packages (`PeglineApp-*-full.nupkg`, `PeglineApp-*-delta.nupkg`), together with the executables and
 libraries built from this repository that they contain. Nothing else is signed: no third-party
@@ -18,7 +18,7 @@ Every release is built from source by the [`Release` workflow](.github/workflows
 GitHub-hosted runners when a version tag such as `v0.1.3` is pushed. The workflow runs the test suite,
 downloads the pinned visual search models from this repository's `models-mobileclip-s2-v1` release
 and verifies them by SHA-256, packages the app with Velopack and publishes the GitHub release. The
-build log of every release is public under [Actions](https://github.com/KYRYZUM/pegline/actions).
+build log of every release is public under [Actions](https://github.com/KYRYZUM/pegline-clipboard-manager/actions).
 
 ## Team roles
 

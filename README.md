@@ -14,7 +14,7 @@ Pegline pegs your images, texts and links onto three lines that slide down from 
 
 ## Install and update
 
-Download `PeglineApp-win-Setup.exe` from [Releases](https://github.com/KYRYZUM/pegline/releases) and run it. It needs no administrator rights, installs to `%LOCALAPPDATA%\PeglineApp` and adds desktop and Start menu shortcuts. Your Library lives in a separate folder (`%LOCALAPPDATA%\Pegline`); uninstalling or updating never touches it.
+Download `PeglineApp-win-Setup.exe` from [Releases](https://github.com/KYRYZUM/pegline-clipboard-manager/releases) and run it. It needs no administrator rights, installs to `%LOCALAPPDATA%\PeglineApp` and adds desktop and Start menu shortcuts. Your Library lives in a separate folder (`%LOCALAPPDATA%\Pegline`); uninstalling or updating never touches it.
 
 The installed app looks for a new version at launch and every hour (you can turn this off in Settings › Updates). A new version shows up as a notification and in the tray menu; nothing is downloaded or installed until you choose "Install and reopen", and later versions download only what changed (delta packages). Updates need no account or token.
 

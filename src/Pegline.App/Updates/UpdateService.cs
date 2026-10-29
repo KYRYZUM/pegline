@@ -16,7 +16,7 @@ namespace Pegline.App.Updates;
 /// </summary>
 internal sealed class UpdateService
 {
-    public const string RepositoryUrl = "https://github.com/KYRYZUM/pegline";
+    public const string RepositoryUrl = "https://github.com/KYRYZUM/pegline-clipboard-manager";
     public const string ReleasesUrl = RepositoryUrl + "/releases";
 
     private static readonly Lazy<bool> Installed = new(() =>
