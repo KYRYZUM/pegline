@@ -16,7 +16,7 @@ Pegline pegs your images, texts and links onto three lines that slide down from 
 
 Download `PeglineApp-win-Setup.exe` from [Releases](https://github.com/KYRYZUM/pegline/releases) and run it. It needs no administrator rights, installs to `%LOCALAPPDATA%\PeglineApp` and adds desktop and Start menu shortcuts. Your Library lives in a separate folder (`%LOCALAPPDATA%\Pegline`); uninstalling or updating never touches it.
 
-The installed app looks for a new version at launch and every hour (you can turn this off in Settings › Updates). A new version shows up as a notification and in the tray menu; nothing is downloaded or installed until you choose "Install and reopen", and later versions download only what changed (delta packages). While the repository is private, updates need a GitHub token with `Contents: Read-only` saved in Settings › Updates; the token is encrypted for your Windows account (DPAPI).
+The installed app looks for a new version at launch and every hour (you can turn this off in Settings › Updates). A new version shows up as a notification and in the tray menu; nothing is downloaded or installed until you choose "Install and reopen", and later versions download only what changed (delta packages). Updates need no account or token.
 
 The installer is not code-signed yet, so Windows SmartScreen may ask for "More info › Run anyway" the first time. Once a certificate is available, `scripts/pack.ps1 -SignParams "..."` signs it.
 

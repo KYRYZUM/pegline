@@ -101,5 +101,5 @@ Goal: a Windows-native counterpart of every user-facing feature in ClipBoardLine
 ## 0.1.3 — Open source
 - [x] MIT License, © 2026 Enes Sarı (`LICENSE`, About)
 - [x] Code signing policy with team roles and privacy policy (`CODE_SIGNING_POLICY.md`), Code of Conduct (Contributor Covenant 2.1)
-- [ ] Public repository
-- [ ] Free code signing for open source projects: application, then signed releases
+- [x] Public repository
+- [~] Free code signing for open source projects: application sent (2026-10-29), waiting for the answer; then signed releases
