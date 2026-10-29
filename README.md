@@ -10,7 +10,7 @@ Pegline pegs your images, texts and links onto three lines that slide down from 
 
 ## Status
 
-`0.1.2`. What is finished is tracked in [ROADMAP.md](ROADMAP.md).
+`0.1.3`. What is finished is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Install and update
 
@@ -67,8 +67,14 @@ Debug builds keep their data in a separate `Pegline Dev` folder. The `PEGLINE_PI
 | `src/Pegline.App` | The WPF app: shelf window, Win32 clipboard listener, global shortcuts, focus hand-back, tray. |
 | `tests/Pegline.Core.Tests` | xUnit: shelf navigation, Library keyboard, capture rules, history cleanup, the store, settings and translations. |
 
+## Code signing policy
+
+How releases are built, who approves them and what Pegline sends over the network: [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+
 ## License
 
-© 2026 Enes Sarı. All rights reserved ([LICENSE](LICENSE)). Third-party components come with their own licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Pegline is released under the [MIT License](LICENSE), © 2026 Enes Sarı. Third-party components come with their own licenses: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Contributions are welcome; please follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Pegline is an independent app. The idea of clipboard shelves was inspired by [ClipBoardLine](https://github.com/orkunisitmak/clipboardline-desktop) and [Tendedero](https://github.com/alejandrobujan/tendedero); none of their code or files are used.

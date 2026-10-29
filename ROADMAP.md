@@ -97,3 +97,9 @@ Goal: a Windows-native counterpart of every user-facing feature in ClipBoardLine
 - [x] Test files copied from another project removed; the same behaviors are covered by Pegline's own tests (shelves, Library keyboard, capture rules, history cleanup)
 - [x] Third-party notices list only the components the app actually uses
 - [x] The visual search models are downloaded from this repository's own `models-mobileclip-s2-v1` release
+
+## 0.1.3 — Open source
+- [x] MIT License, © 2026 Enes Sarı (`LICENSE`, About)
+- [x] Code signing policy with team roles and privacy policy (`CODE_SIGNING_POLICY.md`), Code of Conduct (Contributor Covenant 2.1)
+- [ ] Public repository
+- [ ] Free code signing for open source projects: application, then signed releases

@@ -509,6 +509,6 @@ internal static class Turkish
         ["Bring them down for every copy"] = "Her kopyada insin",
         ["Bring them down for images only"] = "Yalnızca görsellerde insin",
         ["Don't bring them down, just hang it"] = "İnmesin, yalnızca askıya eklensin",
-        ["All rights reserved."] = "Tüm hakları saklıdır.",
+        ["Released under the MIT License."] = "MIT Lisansı ile yayımlanmıştır.",
     };
 }

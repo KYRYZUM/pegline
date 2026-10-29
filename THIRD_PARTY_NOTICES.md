@@ -1,6 +1,6 @@
 # Third-party notices
 
-Pegline, Copyright (c) 2026 Enes Sarı. All rights reserved. See LICENSE.
+Pegline, Copyright (c) 2026 Enes Sarı, is released under the MIT License. See LICENSE.
 
 Pegline includes or downloads the components below. Each stays under its own license, and its
 copyright notice is reproduced here as that license requires.
